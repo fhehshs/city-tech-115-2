@@ -48,13 +48,18 @@ python build_notebooks.py
 
 | 資料夾 | 內容 | 是否上傳 GitHub |
 |---|---|---|
-| `notebooks/py01_hello_colab.ipynb` … `py10_aqi_project.ipynb` | 練習版（只有提示） | ✅ 上傳，學生從網站按「在 Colab 開啟」 |
-| `notebooks_answers/*_解答.ipynb` | 解答版 | ❌ 已列在 `.gitignore`，只留在老師電腦 |
+| `notebooks/py01_hello_colab.ipynb` … `py10_aqi_project.ipynb` | 練習版（只有提示） | ❌ 不上傳（`.gitignore`），正式版放在雲端硬碟 |
+| `notebooks_answers/*_解答.ipynb` | 解答版 | ❌ 不上傳，只留在老師電腦 |
 
-網站上的「在 Colab 開啟」連結格式是
-`https://colab.research.google.com/github/fhehshs/city-tech-115-2/blob/main/notebooks/檔名.ipynb`，
-**repo 必須是 Public 且已 push，連結才會有效**。學生開啟後要先「檔案 → 在雲端硬碟中儲存副本」。
-解答版可以直接上傳到自己的 Google 雲端硬碟，用 Colab 開啟示範。
+**學生用的練習版放在 green@fhehs.tp.edu.tw 的雲端硬碟**，資料夾
+「城市科技Python 115-2 範例Colab」（https://drive.google.com/drive/folders/18JtpgkwdDXs5oypfvyoO8ygyUj9nhRST）：
+- 權限設在資料夾上：只有擁有者能編輯，「臺北市芳和實驗中學」網域的人可檢視；放進資料夾的檔案自動繼承。
+- 網站按鈕連到 `https://colab.research.google.com/drive/檔案ID`，對照表在 `content/_kit.py` 的 `DRIVE_IDS`。
+- 學生要用學校帳號登入才能開啟，開啟後先「檔案 → 在雲端硬碟中儲存副本」再作答。
+
+修改練習內容時：直接在雲端硬碟開啟該檔案編輯即可（網址不變）。
+若用 `build_notebooks.py` 重新產生，請把新檔用 Colab「檔案 → 上傳筆記本」開啟後另存到該資料夾，
+並把新的檔案 ID 更新到 `DRIVE_IDS`。
 
 第 10 課需要的帳號設定（請學生在 Colab 左側 🔑 Secrets 設定，不要寫在程式裡）：
 - `MOENV_API_KEY`：環境部環境資料開放平臺（data.moenv.gov.tw）註冊會員後取得
@@ -62,7 +67,7 @@ python build_notebooks.py
 
 ## 發布給學生（GitHub Pages）
 
-1. `python build_notebooks.py`（產生 notebooks/）
+1. （練習檔有改時）更新雲端硬碟上的 Colab，見上一節
 2. `python make_static.py` → 產生 `docs/`（資料已內嵌，直接雙擊 `docs/index.html` 也能離線看）
 3. 第一次上架：GitHub 新增 repo `city-tech-115-2`（**Public**），在此資料夾執行
    ```
@@ -76,7 +81,7 @@ python build_notebooks.py
 4. GitHub → Settings → Pages → Deploy from a branch → `main` / `/docs` → Save
 5. 學生網址：`https://fhehshs.github.io/city-tech-115-2/`
 
-之後更新：改內容 → `python build_notebooks.py` → `python make_static.py` → `git add . && git commit -m "更新" && git push`
+之後更新：改內容 → `python make_static.py` → `git add . && git commit -m "更新" && git push`
 
 ## 逐週開放章節
 `templates/home.html` 裡的 `const PUBLISHED = 10;` 改成目前要開放的章數，重跑 `make_static.py` 再 push。

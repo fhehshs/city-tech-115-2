@@ -200,7 +200,7 @@ def code_block(lines, caption=''):
 # ───────── Python 課程專用 ─────────
 import html as _html
 
-GITHUB_REPO = 'fhehshs/city-tech-115-2'
+
 OJ_URL = 'http://103.226.213.97/course/view.php?id=2109'   # 線上練習（Moodle VPL）115芳和高中資訊科技Py
 
 
@@ -219,12 +219,31 @@ def py(code, caption='', out=None):
             f"white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>{code}</pre></div>{res}</div>" + chr(10))
 
 
+# 範例 Colab 放在 green@fhehs.tp.edu.tw 的雲端硬碟資料夾「城市科技Python 115-2 範例Colab」
+# (https://drive.google.com/drive/folders/18JtpgkwdDXs5oypfvyoO8ygyUj9nhRST)
+# 權限：只有擁有者能編輯；臺北市芳和實驗中學網域可檢視（資料夾設定，檔案自動繼承）。
+# 修改練習檔：python build_notebooks.py 後，在 Colab「檔案 → 上傳筆記本」或直接編輯雲端硬碟上的檔案。
+DRIVE_IDS = {
+    'py01_hello_colab.ipynb': '1IorXVliFq_vndE-vFzfXHdfpaCBaBkpM',
+    'py02_variables.ipynb': '1ksCfXetMCPa0Z0vVNgFm_yX3MrzQNzO_',
+    'py03_if.ipynb': '1ZS2K5Xjc62x_2L57cfnObxKU09HOcNIg',
+    'py04_loops.ipynb': '1HtSfjeRp_YasZVGaDeasQ9n-mGJdNk6X',
+    'py05_challenge.ipynb': '1qdbzxfci6JCBbU3RkJHI9WvpBuzl-Xub',
+    'py06_list.ipynb': '1R0d79TQUo3Eu9kdCm3BOCMa5X1KwT1NF',
+    'py07_sort_search.ipynb': '1_-D-IdrcjgtcJ8xfuxLnyHzfLPQcchPD',
+    'py08_function.ipynb': '1_g3-lEP_Fgr1jIIy0TeewoxFQq0jCClF',
+    'py09_pandas.ipynb': '1XgNdInNDSqm7JdvtrwDIMDVdYGBaiRPY',
+    'py10_aqi_project.ipynb': '1_pK8QML46AsdEDGQ-_cYfVqJBhOBrgvu',
+}
+
+
 def colab_url(nb):
-    return f'https://colab.research.google.com/github/{GITHUB_REPO}/blob/main/notebooks/{nb}'
+    return f'https://colab.research.google.com/drive/{DRIVE_IDS[nb]}'
 
 
 def colab(nb, label, desc=''):
-    """「在 Colab 開啟」按鈕卡片。nb＝notebooks/ 內的檔名"""
+    """「在 Colab 開啟」按鈕卡片。nb＝DRIVE_IDS 的檔名（需用學校帳號登入才能開啟）"""
+    desc = (desc + '<br>' if desc else '') + '🔐 請用學校 Google 帳號登入才能開啟。'
     d = f"<div style='font-size:.78rem;color:#475569;margin-top:4px;line-height:1.6;'>{desc}</div>" if desc else ''
     return (f"<div style='display:flex;align-items:center;gap:14px;background:#fff7ed;border:1px solid #fed7aa;"
             f"border-radius:12px;padding:12px 16px;margin-bottom:12px;'>"
