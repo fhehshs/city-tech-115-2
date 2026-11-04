@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>城市科技 Python（高一第二學期） — 互動教學</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════
+   CSS 變數（全站顏色主題）
+   ══════════════════════════════════════ */
+:root {
+  --navy:#1E3A5F; --teal:#0D9488; --sage:#6B8F8F;
+  --purple:#6B3FA0; --gold:#F59E0B; --light:#F1F5F9; --white:#fff;
+  --text:#111827; --muted:#374151;
+  --radius:12px; --shadow:0 4px 20px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:#0f172a;color:var(--text);overflow:hidden;height:100vh}
+
+/* ═══ 進度條 ═══ */
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--teal),var(--gold));transition:width .4s;z-index:200}
+
+/* ═══ 頂部導覽 ═══ */
+#topbar{position:fixed;top:3px;left:0;right:0;height:48px;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100;border-bottom:1px solid rgba(255,255,255,.08)}
+#topbar .tb-title{color:#fff;font-size:.85rem;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topbar .tb-counter{color:var(--gold);font-size:.8rem;white-space:nowrap}
+#btn-toc{background:none;border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 10px;border-radius:6px;font-size:.75rem;cursor:pointer}
+#btn-toc:hover{background:rgba(255,255,255,.1)}
+
+/* ═══ 投影片容器 ═══ */
+#slide-wrap{position:fixed;top:51px;left:280px;right:0;bottom:64px;overflow:hidden;transition:left .3s}
+#slide-wrap.toc-hidden{left:0}
+#slide-frame{width:100%;height:100%;padding:20px 24px;overflow-y:auto;transition:opacity .2s}
+
+/* ═══ 投影片背景 ═══ */
+.bg-navy{background:linear-gradient(135deg,#1E3A5F 0%,#0f2340 100%)}
+.bg-teal{background:linear-gradient(135deg,#0D9488 0%,#065f46 100%)}
+.bg-sage{background:linear-gradient(135deg,#6B8F8F 0%,#4a6b6b 100%)}
+.bg-purple{background:linear-gradient(135deg,#6B3FA0 0%,#3b1f6b 100%)}
+.bg-white{background:#f8fafc}
+
+/* ═══ 底部導覽按鈕 ═══ */
+#nav-bar{position:fixed;bottom:0;left:280px;right:0;height:64px;background:rgba(15,23,42,.95);display:flex;align-items:center;justify-content:center;gap:16px;transition:left .3s;z-index:100}
+#nav-bar.toc-hidden{left:0}
+.nav-btn{background:var(--purple);color:#fff;border:none;padding:10px 28px;border-radius:24px;font-size:.9rem;cursor:pointer;font-weight:600;transition:all .2s}
+.nav-btn:hover{background:#5a3290;transform:translateY(-1px)}
+.nav-btn:disabled{background:#334155;cursor:not-allowed;transform:none}
+#slide-dots{display:flex;gap:6px;align-items:center;max-width:300px;flex-wrap:wrap;justify-content:center}
+.dot{width:8px;height:8px;border-radius:50%;background:#334155;cursor:pointer;transition:all .2s}
+.dot.active{background:var(--gold);transform:scale(1.3)}
+.dot.done{background:var(--teal)}
+
+/* ═══ TOC 側邊欄 ═══ */
+#toc{position:fixed;top:51px;left:0;width:280px;bottom:0;background:#0f172a;border-right:1px solid rgba(255,255,255,.08);overflow-y:auto;z-index:50;transition:transform .3s}
+#toc.hidden{transform:translateX(-100%)}
+#toc h3{padding:14px 16px 10px;color:var(--gold);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid rgba(255,255,255,.06)}
+.toc-item{padding:7px 16px;font-size:.78rem;color:#cbd5e1;cursor:pointer;border-left:3px solid transparent;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toc-item:hover{color:#fff;background:rgba(255,255,255,.05)}
+.toc-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(245,158,11,.08)}
+.toc-item.done{color:var(--teal)}
+.toc-chapter{padding:8px 16px 4px;font-size:.7rem;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+
+/* ═══ 封面樣式 ═══ */
+.cover-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 130px);text-align:center;padding:20px}
+.cover-badge{background:rgba(107,63,160,.3);color:#c4b5fd;padding:6px 18px;border-radius:20px;font-size:.8rem;letter-spacing:.08em;margin-bottom:20px;border:1px solid rgba(107,63,160,.4)}
+.cover-title{font-size:clamp(1.8rem,4vw,3rem);font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px}
+.cover-sub{font-size:clamp(.9rem,1.5vw,1.1rem);color:#94a3b8;margin-bottom:24px;max-width:500px}
+.cover-tags{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:20px}
+.tag{background:rgba(255,255,255,.1);color:#cbd5e1;padding:5px 14px;border-radius:14px;font-size:.78rem;border:1px solid rgba(255,255,255,.15)}
+.cover-meta{font-size:.75rem;color:#475569}
+
+/* ═══ 投影片通用 ═══ */
+.slide-inner{padding:8px 4px}
+.slide-title{font-size:clamp(1.1rem,2.2vw,1.5rem);font-weight:700;margin-bottom:12px;color:var(--text)}
+.slide-desc{font-size:.88rem;color:var(--muted);margin-bottom:14px}
+.slide-note{font-size:.82rem;color:var(--muted);margin-top:12px;padding:8px 12px;background:rgba(0,0,0,.05);border-radius:8px}
+.tip-box{background:linear-gradient(135deg,rgba(107,63,160,.1),rgba(30,58,95,.1));border:1px solid rgba(107,63,160,.25);border-radius:10px;padding:12px 16px;font-size:.83rem;color:var(--text);margin-top:12px;line-height:1.6}
+
+/* ═══ 卡片格 ═══ */
+.card-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.card-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.info-card{background:rgba(255,255,255,.12);border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,.15)}
+.card-icon{font-size:1.6rem;margin-bottom:6px}
+.card-label{font-size:.8rem;font-weight:700;color:#fff;margin-bottom:4px}
+.card-desc{font-size:.72rem;color:rgba(255,255,255,.92);line-height:1.4}
+
+/* ═══ 位元視覺 ═══ */
+.bit-demo{background:rgba(255,255,255,.06);border-radius:12px;padding:14px}
+.bit-box{padding:8px 16px;border-radius:10px;font-weight:700;font-size:.9rem;text-align:center}
+.bit-off{background:rgba(239,68,68,.25);border:2px solid rgba(239,68,68,.5);color:#fca5a5}
+.bit-on{background:rgba(34,197,94,.25);border:2px solid rgba(34,197,94,.5);color:#86efac}
+
+/* ═══ 平台表格 ═══ */
+.platform-table{border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:10px}
+.pt-header{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;background:var(--navy);color:#fff;padding:8px 12px;font-size:.75rem;font-weight:600;gap:8px}
+.pt-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;padding:8px 12px;font-size:.78rem;gap:8px;border-top:1px solid #f1f5f9;align-items:center}
+.pt-row:nth-child(even){background:#f8fafc}
+.pt-name{font-weight:600;color:var(--navy)}
+
+/* ═══ 四層架構 ═══ */
+.layer-stack{display:flex;flex-direction:column;gap:2px;margin:8px 0}
+.layer{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15)}
+.layer-hw{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.6);border-width:2px}
+.layer-os{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.6);border-width:2px}
+.layer-app{background:rgba(13,148,136,.12);border-color:rgba(13,148,136,.6);border-width:2px}
+.layer-user{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.6);border-width:2px}
+.layer-num{width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.18);color:#1e293b;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.layer-name{font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:2px}
+.layer-detail{font-size:.75rem;color:#475569}
+.layer-arrow{text-align:center;color:#64748b;font-size:.9rem;margin:-4px 0}
+
+/* ═══ 儲存單位 ═══ */
+.units-grid{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.unit-row{display:flex;align-items:center;gap:12px;padding:7px 12px;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0}
+.unit-small{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.08)}
+.unit-large{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)}
+.unit-name{font-size:.82rem;font-weight:700;color:#1e293b;min-width:150px}
+.unit-eq{font-size:.78rem;color:#475569}
+
+/* ═══ 資料表格 ═══ */
+.info-table{width:100%;border-collapse:collapse;font-size:.8rem;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0}
+.info-table th,.info-table td{padding:8px 12px;text-align:left;border-bottom:1px solid #f1f5f9}
+.table-header{background:var(--navy);color:#fff}
+.table-header th{color:#fff;font-weight:600;font-size:.78rem;padding:9px 12px}
+.tr-highlight{background:rgba(13,148,136,.08)}
+.info-table tr:last-child td{border-bottom:none}
+.td-center{text-align:center}
+
+/* ═══ 功能卡片 ═══ */
+.func-card{display:flex;align-items:center;gap:10px;background:#f8fafc;border-radius:10px;padding:10px 12px;border:1px solid #e2e8f0}
+.fc-num{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.fc-title{font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:3px}
+.fc-desc{font-size:.75rem;color:var(--muted);line-height:1.4}
+
+/* ═══ Fact Box ═══ */
+.fact-box{background:rgba(255,255,255,.08);border-radius:10px;padding:12px;margin-bottom:10px}
+.fact-box p{font-size:.8rem;color:rgba(255,255,255,.95);margin-bottom:6px;line-height:1.5}
+
+/* ═══ 圖表 ═══ */
+.chart-wrap-full{width:100%;margin-bottom:10px}
+
+/* ═══ 作業 ═══ */
+.task-single{background:rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;border:1px solid rgba(255,255,255,.15);margin-bottom:14px}
+.task-title{font-size:.82rem;font-weight:700;color:var(--gold);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.1)}
+.task-item{font-size:.78rem;color:rgba(255,255,255,.8);margin-bottom:7px;padding-left:4px;line-height:1.4}
+.submit-box{display:flex;align-items:center;gap:14px;background:rgba(13,148,136,.2);border:1px solid rgba(13,148,136,.4);border-radius:12px;padding:14px 16px}
+.submit-icon{font-size:2rem;flex-shrink:0}
+.submit-title{font-size:.88rem;font-weight:700;color:#fff;margin-bottom:4px}
+.submit-desc{font-size:.78rem;color:rgba(255,255,255,.8);line-height:1.5}
+
+/* ═══ 影片區塊 ═══ */
+.video-section{margin:10px 0}
+.video-embed{border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9;width:100%;max-width:560px;margin:0 auto}
+.video-embed iframe{width:100%;height:100%;border:none;display:block}
+.video-search-btn{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-size:.85rem;font-weight:600;transition:all .2s;width:fit-content;margin:0 auto}
+.video-search-btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(220,38,38,.4)}
+.video-search-btn .yt-icon{font-size:1.2rem}
+
+/* ═══ 測驗 Modal ═══ */
+#quiz-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+#quiz-overlay.show{display:flex}
+#quiz-box{background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+#quiz-header{background:var(--purple);color:#fff;padding:16px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center}
+#quiz-header h3{font-size:.95rem;font-weight:700}
+#quiz-header .qh-score{background:rgba(255,255,255,.2);padding:4px 12px;border-radius:12px;font-size:.78rem}
+#quiz-body{padding:16px 20px;overflow-y:auto;flex:1}
+.quiz-q{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f1f5f9}
+.quiz-q:last-child{border-bottom:none}
+.q-text{font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:10px;line-height:1.5;white-space:pre-wrap}
+.q-options{display:flex;flex-direction:column;gap:7px}
+.q-opt{padding:9px 14px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:.82rem;transition:all .15s;line-height:1.3}
+.q-opt:hover{border-color:var(--purple);background:#faf5ff}
+.q-opt.selected{border-color:var(--navy);background:rgba(30,58,95,.05)}
+.q-opt.correct{border-color:#10b981;background:#f0fdf4;color:#065f46}
+.q-opt.wrong{border-color:#ef4444;background:#fef2f2;color:#991b1b}
+.q-exp{font-size:.78rem;color:#374151;background:#f8fafc;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid var(--purple);line-height:1.5}
+#quiz-footer{padding:14px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#fff;border-radius:0 0 16px 16px}
+#quiz-footer .qf-score{font-size:.88rem;font-weight:600;color:var(--navy)}
+#btn-submit-quiz,#btn-close-quiz{padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s}
+#btn-submit-quiz{background:var(--navy);color:#fff}
+#btn-submit-quiz:hover{background:#0f2340}
+#btn-close-quiz{background:var(--purple);color:#fff;display:none}
+#btn-close-quiz:hover{background:#5a3290}
+</style>
+</head>
+<body>
+<script>window.__SLIDES__=[{"id": 1, "title": "AQI 資料專題", "chapter": "封面", "bg": "navy", "html": "\n<div style='text-align:center;padding:24px 20px;'>\n  <div style='font-size:66px;margin-bottom:14px;'>🌫️<\/div>\n  <h1 style='font-size:2.6rem;font-weight:900;color:#fff;margin-bottom:10px;'>空氣品質資料專題<\/h1>\n  <h2 style='font-size:1.25rem;font-weight:400;color:#93c5fd;margin-bottom:24px;'>API · JSON · AQI · Gradio · Final Project<\/h2>\n  <div style='display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:22px;'><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>🔌 API<\/span><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>🗂️ JSON<\/span><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>📮 自動通知<\/span><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>🖥️ Gradio 互動網頁<\/span><\/div>\n  <p style='color:#bfdbfe;font-size:1.05rem;'>城市科技 · 高一第二學期 ｜ 第 13–15 週<\/p>\n<\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 2, "title": "專題情境", "chapter": "第一節：API 與 JSON", "bg": "white", "html": "<h2 class='slide-title'>🏃 情境：今天體育課要不要改在室內？<\/h2>\n<div style='background:#f1f5f9;border-radius:10px;padding:12px 16px;margin-bottom:14px;border-left:4px solid #0d9488;'><p style='margin:0;color:#0f172a;font-size:.93rem;line-height:1.7;'>體育老師每天早上都要上網查空氣品質。能不能寫一支程式，<strong>自動抓資料、判斷、通知<\/strong>，甚至做成網頁讓全校查？<\/p><\/div>\n<div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px;'><div style='display:flex;gap:12px;align-items:flex-start;background:#f0fdfa;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>1<\/div><div><strong style='color:#115e59;font-size:.88rem;'>取得資料<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>呼叫環境部的 AQI API（本節）<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f0fdfa;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>2<\/div><div><strong style='color:#115e59;font-size:.88rem;'>分析資料<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>用 Pandas 找出學校附近測站（第二節）<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f0fdfa;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>3<\/div><div><strong style='color:#115e59;font-size:.88rem;'>自動通知<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>超過門檻就寄信（第三節）<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f0fdfa;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>4<\/div><div><strong style='color:#115e59;font-size:.88rem;'>互動網頁<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>用 Gradio 做「空氣品質查詢器」（第三節）<\/div><\/div><\/div><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 3, "title": "什麼是 API", "chapter": "第一節：API 與 JSON", "bg": "white", "html": "<h2 class='slide-title'>🔌 API：程式和程式之間的點餐窗口<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1.3fr;gap:12px;'><div style='background:#eff6ff;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🍔<\/div><strong style='color:#1e40af;font-size:.9rem;'>比喻：速食店點餐<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>你不用進廚房，只要在窗口<strong>照規定點餐<\/strong>（送出網址＋參數），店員就把餐點<strong>照固定格式<\/strong>交給你（JSON 資料）。<\/div><\/div><table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:58%;'>網址的部分<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:42%;'>意思<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>https://data.moenv.gov.tw/api/v2/aqx_p_432<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>資料集：空氣品質指標(AQI)<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>?api_key=…<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>你的通行證<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>&limit=1000<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>最多回傳幾筆<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>&format=JSON<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>回傳格式<\/td><\/tr><\/table>\n<\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🇹🇼 環境部「環境資料開放平臺」提供 AQI 每小時更新的資料。使用前要先<strong>註冊會員取得 API Key<\/strong>。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 4, "title": "保護 API Key", "chapter": "第一節：API 與 JSON", "bg": "white", "html": "<h2 class='slide-title'>🔑 API Key 和密碼一樣，不能外流<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1.3fr;gap:12px;'><div style='background:#fef2f2;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🙅<\/div><strong style='color:#991b1b;font-size:.9rem;'>❌ 危險寫法<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'><code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>API_KEY = &quot;a1b2c3…&quot;<\/code><br>寫在程式碼裡，分享 Colab 給別人時就被看光了。<\/div><\/div><div style='background:#f0fdf4;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🔐<\/div><strong style='color:#166534;font-size:.9rem;'>✅ 用 Colab Secrets<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>左側 🔑 圖示 → 新增密鑰 <code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>MOENV_API_KEY<\/code> → 開啟存取權<br><code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>from google.colab import userdata<\/code><br><code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>API_KEY = userdata.get(&quot;MOENV_API_KEY&quot;)<\/code><\/div><\/div><\/div>\n<div style='background:#fef2f2;padding:11px 16px;border-radius:8px;border-left:4px solid #dc2626;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'> 🛡️ 資安習慣：金鑰、密碼、個資<strong>不寫進程式、不貼到群組、不上傳到公開的 GitHub<\/strong>。外流了就到平臺重新產生一組。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 5, "title": "JSON 格式", "chapter": "第一節：API 與 JSON", "bg": "white", "html": "<h2 class='slide-title'>🗂️ JSON：字典和串列組成的資料<\/h2>\n<div style='display:grid;grid-template-columns:1.3fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>API 回傳資料的樣子（示意，數字非實際資料）<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>{\n  &quot;total&quot;: &quot;84&quot;,\n  &quot;records&quot;: [\n    {&quot;sitename&quot;: &quot;古亭&quot;, &quot;county&quot;: &quot;臺北市&quot;,\n     &quot;aqi&quot;: &quot;45&quot;, &quot;status&quot;: &quot;良好&quot;, &quot;pm2.5&quot;: &quot;9&quot;},\n    {&quot;sitename&quot;: &quot;萬華&quot;, &quot;county&quot;: &quot;臺北市&quot;,\n     &quot;aqi&quot;: &quot;52&quot;, &quot;status&quot;: &quot;普通&quot;, &quot;pm2.5&quot;: &quot;14&quot;}\n  ]\n}<\/pre><\/div><\/div>\n<table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:45%;'>符號<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:55%;'>Python 對應<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>{ \"鍵\": 值 }<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>字典 dict<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>[ … ]<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>串列 list<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>\"文字\"<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>字串 str（注意 aqi 也是字串！）<\/td><\/tr><\/table>\n<\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧠 取值：<code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>data[&quot;records&quot;][0][&quot;sitename&quot;]<\/code> → 先取字典的 records（一個串列），再取索引 0，再取 sitename。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 6, "title": "呼叫 API", "chapter": "第一節：API 與 JSON", "bg": "white", "html": "<h2 class='slide-title'>💻 用 requests 呼叫 API<\/h2>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>import requests\nfrom google.colab import userdata\n\nAPI_KEY = userdata.get(&quot;MOENV_API_KEY&quot;)\nurl = f&quot;https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key={API_KEY}&amp;limit=1000&amp;format=JSON&quot;\ndata = requests.get(url, timeout=30).json()\nrecords = data[&quot;records&quot;]\nprint(&quot;測站數：&quot;, len(records))\nfor rec in records[:3]:\n    print(rec[&quot;county&quot;], rec[&quot;sitename&quot;], rec[&quot;aqi&quot;], rec[&quot;status&quot;])<\/pre><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧯 出錯時先 <code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>print(data)<\/code> 看回傳了什麼：常見原因是 API Key 沒設定、網址打錯、平臺維護中。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 7, "title": "第一節 隨堂測驗", "chapter": "第一節：API 與 JSON", "bg": "purple", "quiz": "q1", "html": "\n<div style='text-align:center;padding:44px 20px;'>\n  <div style='font-size:54px;margin-bottom:16px;'>📝<\/div>\n  <h1 style='font-size:2rem;color:#fff;margin-bottom:10px;'>第一節 隨堂測驗<\/h1>\n  <p style='color:#e9d5ff;font-size:1rem;'>API 與 JSON ｜ 4 題<\/p>\n  <p style='color:#c4b5fd;font-size:.85rem;margin-top:18px;'>按「下一頁 →」開始作答<\/p>\n<\/div>\n", "chart": null, "video": null}, {"id": 8, "title": "AQI 分級", "chapter": "第二節：AQI 資料分析", "bg": "white", "html": "<h2 class='slide-title'>🚦 空氣品質指標 AQI 分級<\/h2>\n<table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:14%;'>AQI<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:26%;'>狀態<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:14%;'>顏色<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:46%;'>活動建議（一般民眾）<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>0–50<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>良好<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>🟢 綠<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>正常戶外活動<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>51–100<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>普通<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>🟡 黃<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>極特殊敏感族群注意<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>101–150<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>對敏感族群不健康<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>🟠 橘<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>有症狀者減少體力消耗活動<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>151–200<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>對所有族群不健康<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>🔴 紅<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>減少戶外活動<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>201–300<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>非常不健康<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>🟣 紫<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>減少外出<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>301–500<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>危害<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>🟤 褐紅<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>避免外出<\/td><\/tr><\/table>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 📚 AQI 依 O₃、PM2.5、PM10、CO、SO₂、NO₂ 等污染物濃度換算，取最大的那一項。分級依環境部空氣品質指標說明。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 9, "title": "轉成 DataFrame", "chapter": "第二節：AQI 資料分析", "bg": "white", "html": "<h2 class='slide-title'>📋 把 JSON 變成 DataFrame<\/h2>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>import pandas as pd\ndf = pd.DataFrame(records)\ndf[&quot;aqi&quot;] = pd.to_numeric(df[&quot;aqi&quot;], errors=&quot;coerce&quot;)\ndf = df.dropna(subset=[&quot;aqi&quot;])\ndf[[&quot;county&quot;, &quot;sitename&quot;, &quot;aqi&quot;, &quot;status&quot;, &quot;pm2.5&quot;, &quot;publishtime&quot;]].head()<\/pre><\/div><\/div>\n<div style='display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;'><div style='background:#fefce8;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🔢<\/div><strong style='color:#854d0e;font-size:.9rem;'>pd.to_numeric(…, errors=\"coerce\")<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>API 給的 aqi 是<strong>字串<\/strong>，要轉成數字才能比大小、排序。轉不了的（例如測站維修沒資料）變成 NaN。<\/div><\/div><div style='background:#eff6ff;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🧹<\/div><strong style='color:#1e40af;font-size:.9rem;'>dropna(subset=[\"aqi\"])<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>把 aqi 是 NaN 的列刪掉，這就是<strong>資料清理<\/strong>。<\/div><\/div><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 10, "title": "找出學校附近", "chapter": "第二節：AQI 資料分析", "bg": "white", "html": "<h2 class='slide-title'>🏫 分析：臺北市、全臺最高、學校附近<\/h2>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'># 臺北市各測站 AQI 由高到低\ntpe = df[df[&quot;county&quot;] == &quot;臺北市&quot;].sort_values(&quot;aqi&quot;, ascending=False)\nprint(tpe[[&quot;sitename&quot;, &quot;aqi&quot;, &quot;status&quot;]])\n\n# 全臺 AQI 最高的 5 站\nprint(df.nlargest(5, &quot;aqi&quot;)[[&quot;county&quot;, &quot;sitename&quot;, &quot;aqi&quot;]])\n\n# 學校附近：古亭站\naqi = df[df[&quot;sitename&quot;] == &quot;古亭&quot;][&quot;aqi&quot;].values[0]\nprint(&quot;古亭 AQI&quot;, aqi)<\/pre><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🗺️ 芳和實中在臺北市大安區，較近的環境部測站有古亭、松山等；可以到「空氣品質監測網」地圖上確認距離最近的測站。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 11, "title": "校內空氣盒子", "chapter": "第二節：AQI 資料分析", "bg": "white", "html": "<h2 class='slide-title'>📦 校內空氣盒子：LASS 開源感測資料<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;'><div style='background:#f0fdfa;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>⚖️<\/div><strong style='color:#115e59;font-size:.9rem;'>兩種資料比一比<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'><strong>環境部測站<\/strong>：精密儀器、數量少、可信度高<br><br><strong>空氣盒子<\/strong>：低成本感測器、數量多、更貼近身邊，但有誤差、可能斷線<\/div><\/div><div style='background:#fff7ed;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🩺<\/div><strong style='color:#9a3412;font-size:.9rem;'>資料的「健康檢查」<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>① 有沒有資料？（盒子斷電就沒有）<br>② 時間對嗎？（API 給 UTC 時間，要 +8 小時）<br>③ 數值合理嗎？（PM2.5 是負數或幾千就有問題）<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🔬 比較同一時間「校內盒子」和「最近測站」的 PM2.5，差多少？為什麼會不同？——這就是資料素養。Colab 第 10 課有範例程式。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 12, "title": "第二節 隨堂測驗", "chapter": "第二節：AQI 資料分析", "bg": "purple", "quiz": "q2", "html": "\n<div style='text-align:center;padding:44px 20px;'>\n  <div style='font-size:54px;margin-bottom:16px;'>📝<\/div>\n  <h1 style='font-size:2rem;color:#fff;margin-bottom:10px;'>第二節 隨堂測驗<\/h1>\n  <p style='color:#e9d5ff;font-size:1rem;'>AQI 資料分析 ｜ 4 題<\/p>\n  <p style='color:#c4b5fd;font-size:.85rem;margin-top:18px;'>按「下一頁 →」開始作答<\/p>\n<\/div>\n", "chart": null, "video": null}, {"id": 13, "title": "自動通知", "chapter": "第三節：通知與互動網頁", "bg": "white", "html": "<h2 class='slide-title'>📮 超過門檻就自動寄信<\/h2>\n<div style='display:grid;grid-template-columns:1.2fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>用到第 3 章的 if 和第 8 章的函式<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>if aqi &gt; 100:\n    send_email(&quot;AQI 警示&quot;,\n               f&quot;古亭 AQI {aqi}，建議體育課改室內&quot;,\n               收件人)\nelse:\n    print(&quot;古亭 AQI&quot;, aqi, &quot;空氣品質尚可&quot;)<\/pre><\/div><\/div>\n<div style='background:#fefce8;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>📢<\/div><strong style='color:#854d0e;font-size:.9rem;'>通知管道的變化<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>舊範例用 <strong>LINE Notify<\/strong>，但它已在 <strong>2025 年 3 月 31 日停止服務<\/strong>，程式就不能用了。<br><br>這次改用 Gmail（需建立「應用程式密碼」，並存在 Colab Secrets）。<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧠 學到的教訓：依賴外部服務的程式，<strong>服務會改版、會收掉<\/strong>。寫程式時把「寄通知」包成函式，要換管道只改一個地方。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 14, "title": "Gradio 介紹", "chapter": "第三節：通知與互動網頁", "bg": "white", "html": "<h2 class='slide-title'>🖥️ Gradio：三行把函式變成網頁<\/h2>\n<div style='display:grid;grid-template-columns:1.3fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>先執行 !pip -q install gradio<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>import gradio as gr\n\ndef bmi(h, w):\n    b = w / (h / 100) ** 2\n    return f&quot;你的 BMI 是 {b:.2f}&quot;\n\ngr.Interface(bmi,\n    inputs=[gr.Number(label=&quot;身高（公分）&quot;),\n            gr.Number(label=&quot;體重（公斤）&quot;)],\n    outputs=&quot;text&quot;,\n    title=&quot;BMI 小幫手&quot;).launch()<\/pre><\/div><\/div>\n<div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px;'><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>1<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>寫一個函式<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>參數 = 使用者輸入，return = 顯示的結果<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>2<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>gr.Interface<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>告訴 Gradio 有哪些輸入框、輸出什麼<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>3<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>.launch()<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>Colab 會顯示網頁，並給一個暫時的分享網址<\/div><\/div><\/div><\/div>\n<\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🔁 第 3 章的 BMI 程式，加上 Gradio 就變成同學可以用手機開的網頁——這就是「<strong>與人互動<\/strong>」的程式。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 15, "title": "空氣品質查詢器", "chapter": "第三節：通知與互動網頁", "bg": "white", "html": "<h2 class='slide-title'>🔍 實作：空氣品質查詢器<\/h2>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def query(site):\n    row = df[df[&quot;sitename&quot;] == site.strip()]\n    if row.empty:\n        return &quot;查無此測站&quot;\n    a = int(row[&quot;aqi&quot;].values[0])\n    if a &lt;= 50:\n        tip = &quot;適合戶外活動&quot;\n    elif a &lt;= 100:\n        tip = &quot;普通，敏感族群留意&quot;\n    else:\n        tip = &quot;建議減少戶外活動&quot;\n    return f&quot;{site} AQI {a}（{row[&#x27;status&#x27;].values[0]}）— {tip}&quot;\n\ngr.Interface(query, inputs=gr.Textbox(label=&quot;測站名稱&quot;),\n             outputs=&quot;text&quot;, title=&quot;空氣品質查詢器&quot;).launch()<\/pre><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧩 整學期的觀念全部用上：<strong>函式、if-elif、字串、Pandas 篩選、f-string<\/strong>。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 16, "title": "把資料用對", "chapter": "第三節：通知與互動網頁", "bg": "white", "html": "<h2 class='slide-title'>⚖️ 負責任地使用資料與程式<\/h2>\n<div style='display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;'><div style='background:#eff6ff;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>📝<\/div><strong style='color:#1e40af;font-size:.9rem;'>註明來源與時間<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>「資料來源：環境部環境資料開放平臺，2026/11/4 10:00 取得」<\/div><\/div><div style='background:#f0fdf4;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>⚠️<\/div><strong style='color:#166534;font-size:.9rem;'>說清楚限制<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>空氣盒子有誤差、測站不在學校正上方、資料每小時才更新<\/div><\/div><div style='background:#fefce8;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🔕<\/div><strong style='color:#854d0e;font-size:.9rem;'>不要造成恐慌<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>寄通知的門檻和措辭要合理，不誇大<\/div><\/div><div style='background:#fef2f2;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🔐<\/div><strong style='color:#991b1b;font-size:.9rem;'>保護金鑰與個資<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>分享 Colab 前檢查有沒有 API Key、Email 密碼<\/div><\/div><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 17, "title": "第三節 隨堂測驗", "chapter": "第三節：通知與互動網頁", "bg": "purple", "quiz": "q3", "html": "\n<div style='text-align:center;padding:44px 20px;'>\n  <div style='font-size:54px;margin-bottom:16px;'>📝<\/div>\n  <h1 style='font-size:2rem;color:#fff;margin-bottom:10px;'>第三節 隨堂測驗<\/h1>\n  <p style='color:#e9d5ff;font-size:1rem;'>通知與互動網頁 ｜ 4 題<\/p>\n  <p style='color:#c4b5fd;font-size:.85rem;margin-top:18px;'>按「下一頁 →」開始作答<\/p>\n<\/div>\n", "chart": null, "video": null}, {"id": 18, "title": "期末專題任務", "chapter": "期末專題", "bg": "white", "html": "<h2 class='slide-title'>🎯 期末專題：用 Python 做一個「與人互動」的資料小工具<\/h2>\n<div style='display:flex;align-items:center;gap:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;margin-bottom:12px;'><div style='font-size:2rem;'>📓<\/div><div style='flex:1;'><strong style='color:#9a3412;font-size:.9rem;'>第 10 課 Colab：AQI 專題範例<\/strong><div style='font-size:.78rem;color:#475569;margin-top:4px;line-height:1.6;'>API 呼叫、JSON 解析、Pandas 分析、空氣盒子、Gmail 通知、Gradio 查詢器<\/div><\/div><a href='https://colab.research.google.com/github/fhehshs/city-tech-115-2/blob/main/notebooks/py10_aqi_project.ipynb' target='_blank' rel='noopener' style='background:#f9ab00;color:#1f2937;font-weight:700;font-size:.82rem;padding:9px 16px;border-radius:20px;text-decoration:none;white-space:nowrap;'>在 Colab 開啟 ↗<\/a><\/div>\n<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;'><div style='background:#f8fafc;padding:14px;border-radius:10px;'><strong style='color:#334155;font-size:.9rem;'>① 取得資料<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>API 或開放資料檔，註明來源與取得時間<\/div><\/div><div style='background:#f8fafc;padding:14px;border-radius:10px;'><strong style='color:#334155;font-size:.9rem;'>② 處理資料<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>至少 1 個篩選或統計<\/div><\/div><div style='background:#f8fafc;padding:14px;border-radius:10px;'><strong style='color:#334155;font-size:.9rem;'>③ 呈現結果<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>1 張圖表或 1 個 Gradio 介面<\/div><\/div><div style='background:#f8fafc;padding:14px;border-radius:10px;'><strong style='color:#334155;font-size:.9rem;'>④ 文字說明<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>動機、做法、發現、困難<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 💡 主題自選：AQI、YouBike、天氣、公車、校內空氣盒子、圖書館…。2～3 人一組，繳交 Colab 共用連結（檢視者權限）＋ 1 分鐘展示。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 19, "title": "專題評分規準", "chapter": "期末專題", "bg": "white", "html": "<h2 class='slide-title'>📏 期末專題評分規準<\/h2>\n<table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:20%;'>向度<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:20%;'>A<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:20%;'>B<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:20%;'>C<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:20%;'>D<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>資料取得（20%）<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>使用 API 或即時資料，來源、時間完整<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>使用開放資料檔，有註明來源<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>有資料但來源不清楚<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>沒有真實資料<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>程式設計（35%）<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>程式正確、有函式與註解、有處理錯誤情況<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>程式正確可執行<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>部分功能有誤<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>無法執行<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>呈現與互動（25%）<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>Gradio 介面或圖表清楚、易用<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>有圖表或介面<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>呈現不清楚<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>沒有呈現<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>說明與展示（20%）<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>能說明發現與資料限制<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>能說明做法<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>說明不完整<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>未說明<\/td><\/tr><\/table>\n", "quiz": null, "chart": null, "video": null}, {"id": 20, "title": "學期總結", "chapter": "期末專題", "bg": "navy", "html": "\n<h2 style='color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:14px;'>📌 這學期你學會了<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;'><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>基礎語法<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>輸出入、變數、運算、選擇、迴圈<\/p><\/div><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>資料結構與演算法<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>串列、二維串列、排序、搜尋、遞迴<\/p><\/div><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>模組化<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>函式：把問題拆小、包成工具<\/p><\/div><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>資料應用<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>Pandas、API、Gradio：用程式解決真實問題<\/p><\/div><\/div>\n<div style='background:linear-gradient(90deg,rgba(13,148,136,.35),rgba(107,63,160,.35));border-radius:10px;padding:16px 20px;text-align:center;'>\n  <p style='color:#fff;font-size:1.02rem;font-weight:700;margin:0;'>Stay Hungry, Stay Foolish ！<\/p>\n  <p style='color:#cbd5e1;font-size:.82rem;margin-top:6px;'>從 print(\"Hello\") 到空氣品質查詢器——第 3 學期見：工程設計！<\/p>\n<\/div>\n", "quiz": null, "chart": null, "video": null}];window.__QUIZZES__={"q1": {"title": "第一節 隨堂測驗", "questions": [{"q": "關於 API 的敘述，何者正確？", "options": ["API 是一種程式語言", "API 讓程式可以照規定的格式向服務要資料", "API 只能在手機上用", "API 不需要網路"], "answer": 1, "explain": "API（應用程式介面）是程式之間溝通的約定：照規定送出請求，就會收到固定格式的資料。"}, {"q": "要讓 Colab 安全地使用 API Key，最好的做法是？", "options": ["直接寫在程式碼第一行", "貼在班級群組方便大家用", "存在 Colab Secrets，用 userdata.get() 讀取", "寫在檔名裡"], "answer": 2, "explain": "金鑰寫在程式碼裡，分享筆記本時就會外流。存在 Colab Secrets 只有你自己的執行環境讀得到。"}, {"q": "JSON 中 { } 和 [ ] 分別對應 Python 的？", "options": ["串列、字典", "字典、串列", "字串、數字", "函式、迴圈"], "answer": 1, "explain": "大括號 { } 是「鍵: 值」的字典，中括號 [ ] 是有順序的串列。"}, {"q": "data = {\"records\": [{\"sitename\": \"古亭\"}]}，要取出 \"古亭\" 應寫？", "options": ["data[\"sitename\"]", "data[\"records\"][\"sitename\"]", "data[\"records\"][0][\"sitename\"]", "data[0][\"sitename\"]"], "answer": 2, "explain": "先取字典的 records（是串列），再取索引 0（第一個字典），最後取 sitename。"}]}, "q2": {"title": "第二節 隨堂測驗", "questions": [{"q": "AQI = 120，狀態是？", "options": ["良好", "普通", "對敏感族群不健康", "危害"], "answer": 2, "explain": "AQI 101～150 為「對敏感族群不健康」（橘色），有症狀的人應減少體力消耗的活動。"}, {"q": "API 回傳的 aqi 欄位是字串，為什麼要先用 pd.to_numeric() 轉換？", "options": ["讓字變漂亮", "字串不能正確地比大小和排序", "因為 Pandas 不支援中文", "為了刪除資料"], "answer": 1, "explain": "字串比大小是一個字一個字比，\"9\" 會大於 \"100\"。轉成數字後比較、排序、計算才正確。"}, {"q": "df.dropna(subset=[\"aqi\"]) 的作用是？", "options": ["刪除 aqi 欄", "刪除 aqi 沒有值（NaN）的列", "把 aqi 補成 0", "排序 aqi"], "answer": 1, "explain": "dropna 刪除缺值的資料列，subset 指定只看 aqi 欄。這是資料清理的常見步驟。"}, {"q": "校內空氣盒子的 PM2.5 和環境部測站不一樣，下列解釋何者「最不合理」？", "options": ["感測器種類與精度不同", "兩者位置不同", "量測時間可能不同", "程式語言不同造成的"], "answer": 3, "explain": "數值差異來自儀器、位置、時間等真實因素，和用哪種程式語言讀取資料無關。"}]}, "q3": {"title": "第三節 隨堂測驗", "questions": [{"q": "舊範例使用 LINE Notify 傳通知，現在無法使用的原因是？", "options": ["Python 不支援", "LINE Notify 已於 2025 年 3 月 31 日停止服務", "學校網路擋住", "API Key 過期"], "answer": 1, "explain": "LINE Notify 已結束服務。依賴外部服務的程式要能隨時更換，所以把「寄通知」包成函式比較好維護。"}, {"q": "gr.Interface(fn, inputs=…, outputs=…) 中的 fn 是？", "options": ["網頁的顏色", "使用者輸入後要執行的函式", "網址", "圖片"], "answer": 1, "explain": "Gradio 會把使用者在輸入框填的值當成參數傳給 fn，再把 fn 的回傳值顯示在輸出區。"}, {"q": "查詢器函式中，if row.empty: return \"查無此測站\" 是為了？", "options": ["讓程式更快", "處理使用者輸入不存在的測站，避免程式出錯", "刪除資料", "寄送通知"], "answer": 1, "explain": "使用者可能打錯字。先檢查篩選結果是否為空，否則取 values[0] 會出現 IndexError。"}, {"q": "分享專題 Colab 給老師前，最重要的檢查是？", "options": ["字型大小", "程式碼裡有沒有 API Key、密碼等機密資訊", "有沒有用到 for 迴圈", "檔案大小"], "answer": 1, "explain": "分享的筆記本別人都看得到程式碼，機密資訊要用 Colab Secrets 存放，分享前務必檢查。"}]}};</script>
+
+<!-- 進度條 -->
+<div id="progress-bar" style="width:0%"></div>
+
+<!-- 頂部導覽列 -->
+<div id="topbar">
+  <a href="index.html" style="color:#94a3b8;text-decoration:none;font-size:.8rem;white-space:nowrap">🏠 首頁</a>
+  <span class="tb-title" id="tb-chapter">城市科技 Python（高一第二學期）</span>
+  <span class="tb-counter" id="tb-counter">1 / 20</span>
+  <button id="btn-toc" onclick="toggleToc()">目錄 ☰</button>
+</div>
+
+<!-- 投影片主體 -->
+<div id="slide-wrap">
+  <div id="slide-frame" class="bg-navy"></div>
+</div>
+
+<!-- 底部導覽 -->
+<div id="nav-bar">
+  <button class="nav-btn" id="btn-prev" onclick="prevSlide()" disabled>← 上一頁</button>
+  <div id="slide-dots"></div>
+  <button class="nav-btn" id="btn-next" onclick="nextSlide()">下一頁 →</button>
+</div>
+
+<!-- TOC 側邊欄 -->
+<div id="toc">
+  <h3>📑 課程目錄</h3>
+  <div id="toc-list"></div>
+</div>
+
+<!-- 測驗 Modal -->
+<div id="quiz-overlay">
+  <div id="quiz-box">
+    <div id="quiz-header">
+      <h3 id="quiz-title">測驗</h3>
+      <span class="qh-score" id="quiz-score-preview"></span>
+    </div>
+    <div id="quiz-body"></div>
+    <div id="quiz-footer">
+      <span class="qf-score" id="quiz-result"></span>
+      <div style="display:flex;gap:10px">
+        <button id="btn-submit-quiz" onclick="submitQuiz()">送出答案</button>
+        <button id="btn-close-quiz" onclick="closeQuiz()">繼續學習 →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  從 Jinja2 模板取得 Flask 傳入的資料
+// ════════════════════════════════════════════════════════════
+const TOTAL_SLIDES = 20;
+const CHAPTERS_DATA = [{"name": "\u5c01\u9762", "start": 1}, {"name": "\u7b2c\u4e00\u7bc0\uff1aAPI \u8207 JSON", "start": 2}, {"name": "\u7b2c\u4e8c\u7bc0\uff1aAQI \u8cc7\u6599\u5206\u6790", "start": 8}, {"name": "\u7b2c\u4e09\u7bc0\uff1a\u901a\u77e5\u8207\u4e92\u52d5\u7db2\u9801", "start": 13}, {"name": "\u671f\u672b\u5c08\u984c", "start": 18}];
+
+// ════════════════════════════════════════════════════════════
+//  全域狀態
+// ════════════════════════════════════════════════════════════
+let slides = [];
+let quizzes = {};
+let cur = 0;
+let answered = {};
+let tocVisible = true;
+const chartInstances = {};
+
+// ════════════════════════════════════════════════════════════
+//  初始化：從 Flask API 取得資料
+// ════════════════════════════════════════════════════════════
+async function init() {
+  try {
+    const [slidesRes, quizzesRes] = await Promise.all([
+      Promise.resolve({json:()=>window.__SLIDES__}),
+      Promise.resolve({json:()=>window.__QUIZZES__})
+    ]);
+    slides = await slidesRes.json();
+    quizzes = await quizzesRes.json();
+    buildToc();
+    buildDots();
+    goTo(0);
+  } catch (e) {
+    console.error('資料載入失敗：', e);
+    document.getElementById('slide-frame').innerHTML =
+      "<div style='color:red;padding:20px'>❌ 請確認 Flask 伺服器已啟動！<br><code>python app.py</code></div>";
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  建立目錄（TOC）
+// ════════════════════════════════════════════════════════════
+function buildToc() {
+  const list = document.getElementById('toc-list');
+  let lastChapter = '';
+  slides.forEach((s, i) => {
+    if (s.chapter !== lastChapter) {
+      const ch = document.createElement('div');
+      ch.className = 'toc-chapter';
+      ch.textContent = s.chapter;
+      list.appendChild(ch);
+      lastChapter = s.chapter;
+    }
+    const item = document.createElement('div');
+    item.className = 'toc-item';
+    item.id = `toc-${i}`;
+    item.textContent = `${s.id}. ${s.title}`;
+    item.onclick = () => goTo(i);
+    list.appendChild(item);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  建立點狀導覽
+// ════════════════════════════════════════════════════════════
+function buildDots() {
+  const wrap = document.getElementById('slide-dots');
+  const step = Math.max(1, Math.floor(slides.length / 15));
+  slides.forEach((s, i) => {
+    if (i % step !== 0 && i !== slides.length - 1) return;
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.id = `dot-${i}`;
+    d.title = s.title;
+    d.onclick = () => goTo(i);
+    wrap.appendChild(d);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  前往特定投影片
+// ════════════════════════════════════════════════════════════
+function goTo(idx) {
+  if (idx < 0 || idx >= slides.length) return;
+  cur = idx;
+  const s = slides[cur];
+  const frame = document.getElementById('slide-frame');
+  frame.className = '';
+  frame.classList.add('bg-' + s.bg);
+  frame.style.opacity = '0';
+  frame.innerHTML = s.html;
+  setTimeout(() => { frame.style.opacity = '1'; }, 30);
+  frame.scrollTop = 0;
+  if (s.chart) setTimeout(() => renderChart(s.chart), 80);
+  if (s.video) setTimeout(() => renderVideo(s.id, s.video), 80);
+  updateNav();
+  updateToc();
+  updateProgress();
+}
+
+// ════════════════════════════════════════════════════════════
+//  導覽：下一頁（有測驗時先觸發測驗）
+// ════════════════════════════════════════════════════════════
+function nextSlide() {
+  const s = slides[cur];
+  if (s.quiz && !answered[s.quiz]) {
+    showQuiz(s.quiz);
+  } else {
+    goTo(cur + 1);
+  }
+}
+function prevSlide() { goTo(cur - 1); }
+
+// ════════════════════════════════════════════════════════════
+//  更新導覽列、進度條、TOC
+// ════════════════════════════════════════════════════════════
+function updateNav() {
+  document.getElementById('btn-prev').disabled = cur === 0;
+  const isLast = cur === slides.length - 1;
+  const hasUnansweredQuiz = slides[cur].quiz && !answered[slides[cur].quiz];
+  document.getElementById('btn-next').disabled = isLast && !hasUnansweredQuiz;
+  document.getElementById('tb-chapter').textContent = slides[cur].chapter + '：' + slides[cur].title;
+  document.getElementById('tb-counter').textContent = `${cur + 1} / ${slides.length}`;
+  document.querySelectorAll('.dot').forEach(d => {
+    d.classList.remove('active');
+    const i = parseInt(d.id.replace('dot-', ''));
+    if (cur === i) d.classList.add('active');
+    else if (cur > i) d.classList.add('done');
+    else d.classList.remove('done');
+  });
+}
+
+function updateProgress() {
+  const pct = ((cur + 1) / slides.length) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function updateToc() {
+  document.querySelectorAll('.toc-item').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i === cur) { el.classList.add('active'); el.scrollIntoView({block:'nearest'}); }
+    else if (i < cur) el.classList.add('done');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  切換 TOC 顯示
+// ════════════════════════════════════════════════════════════
+function toggleToc() {
+  tocVisible = !tocVisible;
+  document.getElementById('toc').classList.toggle('hidden', !tocVisible);
+  document.getElementById('slide-wrap').classList.toggle('toc-hidden', !tocVisible);
+  document.getElementById('nav-bar').classList.toggle('toc-hidden', !tocVisible);
+}
+
+// ════════════════════════════════════════════════════════════
+//  鍵盤快捷鍵
+// ════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+  if (e.key === 'ArrowLeft') prevSlide();
+});
+
+// ════════════════════════════════════════════════════════════
+//  影片渲染（YouTube 嵌入 / 搜尋按鈕 / 兩者兼具）
+//  嵌入使用 youtube-nocookie.com（不追蹤、不推薦其他影片、無個人化廣告）
+//  參數 rel=0（結束不推薦別家頻道）、modestbranding=1（隱藏 YT logo）
+// ════════════════════════════════════════════════════════════
+function _ytEmbedHtml(vid, title) {
+  // 使用 youtube-nocookie.com — YouTube 官方「隱私強化」網域，更乾淨
+  return `
+    <div class="video-embed">
+      <iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&iv_load_policy=3&fs=1"
+        allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        loading="lazy"></iframe>
+    </div>
+    <p style="text-align:center;font-size:.72rem;color:rgba(255,255,255,.55);margin-top:6px">▶ ${title}</p>`;
+}
+function _ytSearchHtml(query, title, desc) {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  return `
+    <a href="${url}" target="_blank" class="video-search-btn">
+      <span class="yt-icon">▶️</span>
+      <span>
+        <strong>${title}</strong><br>
+        <small style="font-weight:400;opacity:.8">${desc}</small>
+      </span>
+    </a>`;
+}
+
+function renderVideo(slideId, video) {
+  const el = document.getElementById(`video-section-${slideId}`);
+  if (!el) return;
+  if (video.type === 'youtube') {
+    el.innerHTML = _ytEmbedHtml(video.id, video.title);
+  } else if (video.type === 'both') {
+    // 嵌入播放器 + 底下附「找不到？搜尋更多」備援
+    el.innerHTML = `
+      ${_ytEmbedHtml(video.id, video.title)}
+      <div style="margin-top:10px;">
+        ${_ytSearchHtml(video.query, video.search_title || '想看更多相關影片', video.desc || '在 YouTube 搜尋同主題其他教學')}
+      </div>`;
+  } else {
+    el.innerHTML = _ytSearchHtml(video.query, video.title, video.desc);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  圖表渲染（Chart.js，防止重複建立）
+// ════════════════════════════════════════════════════════════
+function renderChart(type) {
+  if (type === 'formats') {
+    const el = document.getElementById('chart-formats');
+    if (!el || chartInstances['formats']) return;
+    chartInstances['formats'] = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: ['JPEG（照片）', 'PNG（圖示）', 'PNG（截圖）', 'SVG（Logo）'],
+        datasets: [{
+          label: '典型檔案大小（KB）',
+          data: [150, 400, 1200, 8],
+          backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.raw} KB` } }
+        },
+        scales: {
+          y: {
+            type: 'logarithmic',
+            title: { display: true, text: '檔案大小 KB（對數刻度）', color:'#6b7280', font:{size:10} },
+            ticks: { color:'#6b7280', font:{size:10}, callback: v => v + ' KB' }
+          },
+          x: { ticks: { color:'#374151', font:{size:11} }, grid:{display:false} }
+        }
+      }
+    });
+  }
+
+  if (type === 'ai_tools') {
+    const el = document.getElementById('chart-ai-tools');
+    if (!el || chartInstances['ai_tools']) return;
+    chartInstances['ai_tools'] = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: ['ChatGPT GPT-4o', 'Canva AI', 'Midjourney', 'Adobe Firefly'],
+        datasets: [
+          {
+            label: '圖像品質',
+            data: [4, 3, 5, 4],
+            backgroundColor: 'rgba(107,63,160,.7)',
+            borderRadius: 4
+          },
+          {
+            label: '操作難易',
+            data: [5, 5, 2, 4],
+            backgroundColor: 'rgba(13,148,136,.7)',
+            borderRadius: 4
+          },
+          {
+            label: '授權安全',
+            data: [3, 4, 3, 5],
+            backgroundColor: 'rgba(245,158,11,.7)',
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font:{size:10}, padding:8 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}：${'⭐'.repeat(ctx.raw)}` } }
+        },
+        scales: {
+          y: {
+            min: 0, max: 5,
+            ticks: { color:'#6b7280', font:{size:10}, stepSize: 1, callback: v => v + '⭐' }
+          },
+          x: { ticks: { color:'#374151', font:{size:10} }, grid:{display:false} }
+        }
+      }
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  測驗功能
+// ════════════════════════════════════════════════════════════
+let curQuizId = null;
+let quizUserAnswers = {};
+
+function showQuiz(qId) {
+  curQuizId = qId;
+  quizUserAnswers = {};
+  const q = quizzes[qId];
+  document.getElementById('quiz-title').textContent = q.title;
+  document.getElementById('quiz-score-preview').textContent = q.questions.length + ' 題';
+  document.getElementById('quiz-result').textContent = '';
+  document.getElementById('btn-submit-quiz').style.display = '';
+  document.getElementById('btn-close-quiz').style.display = 'none';
+
+  const body = document.getElementById('quiz-body');
+  body.innerHTML = '';
+  q.questions.forEach((question, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-q';
+    div.innerHTML = `<div class="q-text">${qi+1}. ${question.q}</div>
+      <div class="q-options" id="opts-${qi}">
+        ${question.options.map((opt, oi) =>
+          `<div class="q-opt" id="opt-${qi}-${oi}" onclick="selectOpt(${qi},${oi})">${opt}</div>`
+        ).join('')}
+      </div>`;
+    body.appendChild(div);
+  });
+  document.getElementById('quiz-overlay').classList.add('show');
+}
+
+function selectOpt(qi, oi) {
+  quizUserAnswers[qi] = oi;
+  const q = quizzes[curQuizId];
+  for (let o = 0; o < q.questions[qi].options.length; o++) {
+    document.getElementById(`opt-${qi}-${o}`).classList.toggle('selected', o === oi);
+  }
+}
+
+function submitQuiz() {
+  const q = quizzes[curQuizId];
+  let correct = 0;
+  q.questions.forEach((question, qi) => {
+    const chosen = quizUserAnswers[qi];
+    const opts = document.getElementById(`opts-${qi}`);
+    for (let o = 0; o < question.options.length; o++) {
+      const el = document.getElementById(`opt-${qi}-${o}`);
+      el.onclick = null;
+      el.classList.remove('selected');
+      if (o === question.answer) el.classList.add('correct');
+      else if (o === chosen && chosen !== question.answer) el.classList.add('wrong');
+    }
+    if (!opts.querySelector('.q-exp')) {
+      const exp = document.createElement('div');
+      exp.className = 'q-exp';
+      exp.innerHTML = '💡 ' + question.explain;   // 解析內容中的 <strong> 等標記
+      opts.after(exp);
+    }
+    if (chosen === question.answer) correct++;
+  });
+  const pct = Math.round((correct / q.questions.length) * 100);
+  document.getElementById('quiz-result').textContent = `得分：${correct}/${q.questions.length}（${pct}%）`;
+  document.getElementById('btn-submit-quiz').style.display = 'none';
+  document.getElementById('btn-close-quiz').style.display = 'inline-block';
+  answered[curQuizId] = true;
+}
+
+function closeQuiz() {
+  document.getElementById('quiz-overlay').classList.remove('show');
+  goTo(cur + 1);
+}
+
+// ════════════════════════════════════════════════════════════
+//  啟動
+// ════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>

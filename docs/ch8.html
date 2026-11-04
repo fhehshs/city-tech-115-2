@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>城市科技 Python（高一第二學期） — 互動教學</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════
+   CSS 變數（全站顏色主題）
+   ══════════════════════════════════════ */
+:root {
+  --navy:#1E3A5F; --teal:#0D9488; --sage:#6B8F8F;
+  --purple:#6B3FA0; --gold:#F59E0B; --light:#F1F5F9; --white:#fff;
+  --text:#111827; --muted:#374151;
+  --radius:12px; --shadow:0 4px 20px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Noto Sans TC',sans-serif;background:#0f172a;color:var(--text);overflow:hidden;height:100vh}
+
+/* ═══ 進度條 ═══ */
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--teal),var(--gold));transition:width .4s;z-index:200}
+
+/* ═══ 頂部導覽 ═══ */
+#topbar{position:fixed;top:3px;left:0;right:0;height:48px;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100;border-bottom:1px solid rgba(255,255,255,.08)}
+#topbar .tb-title{color:#fff;font-size:.85rem;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topbar .tb-counter{color:var(--gold);font-size:.8rem;white-space:nowrap}
+#btn-toc{background:none;border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 10px;border-radius:6px;font-size:.75rem;cursor:pointer}
+#btn-toc:hover{background:rgba(255,255,255,.1)}
+
+/* ═══ 投影片容器 ═══ */
+#slide-wrap{position:fixed;top:51px;left:280px;right:0;bottom:64px;overflow:hidden;transition:left .3s}
+#slide-wrap.toc-hidden{left:0}
+#slide-frame{width:100%;height:100%;padding:20px 24px;overflow-y:auto;transition:opacity .2s}
+
+/* ═══ 投影片背景 ═══ */
+.bg-navy{background:linear-gradient(135deg,#1E3A5F 0%,#0f2340 100%)}
+.bg-teal{background:linear-gradient(135deg,#0D9488 0%,#065f46 100%)}
+.bg-sage{background:linear-gradient(135deg,#6B8F8F 0%,#4a6b6b 100%)}
+.bg-purple{background:linear-gradient(135deg,#6B3FA0 0%,#3b1f6b 100%)}
+.bg-white{background:#f8fafc}
+
+/* ═══ 底部導覽按鈕 ═══ */
+#nav-bar{position:fixed;bottom:0;left:280px;right:0;height:64px;background:rgba(15,23,42,.95);display:flex;align-items:center;justify-content:center;gap:16px;transition:left .3s;z-index:100}
+#nav-bar.toc-hidden{left:0}
+.nav-btn{background:var(--purple);color:#fff;border:none;padding:10px 28px;border-radius:24px;font-size:.9rem;cursor:pointer;font-weight:600;transition:all .2s}
+.nav-btn:hover{background:#5a3290;transform:translateY(-1px)}
+.nav-btn:disabled{background:#334155;cursor:not-allowed;transform:none}
+#slide-dots{display:flex;gap:6px;align-items:center;max-width:300px;flex-wrap:wrap;justify-content:center}
+.dot{width:8px;height:8px;border-radius:50%;background:#334155;cursor:pointer;transition:all .2s}
+.dot.active{background:var(--gold);transform:scale(1.3)}
+.dot.done{background:var(--teal)}
+
+/* ═══ TOC 側邊欄 ═══ */
+#toc{position:fixed;top:51px;left:0;width:280px;bottom:0;background:#0f172a;border-right:1px solid rgba(255,255,255,.08);overflow-y:auto;z-index:50;transition:transform .3s}
+#toc.hidden{transform:translateX(-100%)}
+#toc h3{padding:14px 16px 10px;color:var(--gold);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid rgba(255,255,255,.06)}
+.toc-item{padding:7px 16px;font-size:.78rem;color:#cbd5e1;cursor:pointer;border-left:3px solid transparent;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toc-item:hover{color:#fff;background:rgba(255,255,255,.05)}
+.toc-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(245,158,11,.08)}
+.toc-item.done{color:var(--teal)}
+.toc-chapter{padding:8px 16px 4px;font-size:.7rem;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+
+/* ═══ 封面樣式 ═══ */
+.cover-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 130px);text-align:center;padding:20px}
+.cover-badge{background:rgba(107,63,160,.3);color:#c4b5fd;padding:6px 18px;border-radius:20px;font-size:.8rem;letter-spacing:.08em;margin-bottom:20px;border:1px solid rgba(107,63,160,.4)}
+.cover-title{font-size:clamp(1.8rem,4vw,3rem);font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px}
+.cover-sub{font-size:clamp(.9rem,1.5vw,1.1rem);color:#94a3b8;margin-bottom:24px;max-width:500px}
+.cover-tags{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:20px}
+.tag{background:rgba(255,255,255,.1);color:#cbd5e1;padding:5px 14px;border-radius:14px;font-size:.78rem;border:1px solid rgba(255,255,255,.15)}
+.cover-meta{font-size:.75rem;color:#475569}
+
+/* ═══ 投影片通用 ═══ */
+.slide-inner{padding:8px 4px}
+.slide-title{font-size:clamp(1.1rem,2.2vw,1.5rem);font-weight:700;margin-bottom:12px;color:var(--text)}
+.slide-desc{font-size:.88rem;color:var(--muted);margin-bottom:14px}
+.slide-note{font-size:.82rem;color:var(--muted);margin-top:12px;padding:8px 12px;background:rgba(0,0,0,.05);border-radius:8px}
+.tip-box{background:linear-gradient(135deg,rgba(107,63,160,.1),rgba(30,58,95,.1));border:1px solid rgba(107,63,160,.25);border-radius:10px;padding:12px 16px;font-size:.83rem;color:var(--text);margin-top:12px;line-height:1.6}
+
+/* ═══ 卡片格 ═══ */
+.card-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.card-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.info-card{background:rgba(255,255,255,.12);border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,.15)}
+.card-icon{font-size:1.6rem;margin-bottom:6px}
+.card-label{font-size:.8rem;font-weight:700;color:#fff;margin-bottom:4px}
+.card-desc{font-size:.72rem;color:rgba(255,255,255,.92);line-height:1.4}
+
+/* ═══ 位元視覺 ═══ */
+.bit-demo{background:rgba(255,255,255,.06);border-radius:12px;padding:14px}
+.bit-box{padding:8px 16px;border-radius:10px;font-weight:700;font-size:.9rem;text-align:center}
+.bit-off{background:rgba(239,68,68,.25);border:2px solid rgba(239,68,68,.5);color:#fca5a5}
+.bit-on{background:rgba(34,197,94,.25);border:2px solid rgba(34,197,94,.5);color:#86efac}
+
+/* ═══ 平台表格 ═══ */
+.platform-table{border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:10px}
+.pt-header{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;background:var(--navy);color:#fff;padding:8px 12px;font-size:.75rem;font-weight:600;gap:8px}
+.pt-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;padding:8px 12px;font-size:.78rem;gap:8px;border-top:1px solid #f1f5f9;align-items:center}
+.pt-row:nth-child(even){background:#f8fafc}
+.pt-name{font-weight:600;color:var(--navy)}
+
+/* ═══ 四層架構 ═══ */
+.layer-stack{display:flex;flex-direction:column;gap:2px;margin:8px 0}
+.layer{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15)}
+.layer-hw{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.6);border-width:2px}
+.layer-os{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.6);border-width:2px}
+.layer-app{background:rgba(13,148,136,.12);border-color:rgba(13,148,136,.6);border-width:2px}
+.layer-user{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.6);border-width:2px}
+.layer-num{width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.18);color:#1e293b;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.layer-name{font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:2px}
+.layer-detail{font-size:.75rem;color:#475569}
+.layer-arrow{text-align:center;color:#64748b;font-size:.9rem;margin:-4px 0}
+
+/* ═══ 儲存單位 ═══ */
+.units-grid{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.unit-row{display:flex;align-items:center;gap:12px;padding:7px 12px;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0}
+.unit-small{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.08)}
+.unit-large{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)}
+.unit-name{font-size:.82rem;font-weight:700;color:#1e293b;min-width:150px}
+.unit-eq{font-size:.78rem;color:#475569}
+
+/* ═══ 資料表格 ═══ */
+.info-table{width:100%;border-collapse:collapse;font-size:.8rem;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0}
+.info-table th,.info-table td{padding:8px 12px;text-align:left;border-bottom:1px solid #f1f5f9}
+.table-header{background:var(--navy);color:#fff}
+.table-header th{color:#fff;font-weight:600;font-size:.78rem;padding:9px 12px}
+.tr-highlight{background:rgba(13,148,136,.08)}
+.info-table tr:last-child td{border-bottom:none}
+.td-center{text-align:center}
+
+/* ═══ 功能卡片 ═══ */
+.func-card{display:flex;align-items:center;gap:10px;background:#f8fafc;border-radius:10px;padding:10px 12px;border:1px solid #e2e8f0}
+.fc-num{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.fc-title{font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:3px}
+.fc-desc{font-size:.75rem;color:var(--muted);line-height:1.4}
+
+/* ═══ Fact Box ═══ */
+.fact-box{background:rgba(255,255,255,.08);border-radius:10px;padding:12px;margin-bottom:10px}
+.fact-box p{font-size:.8rem;color:rgba(255,255,255,.95);margin-bottom:6px;line-height:1.5}
+
+/* ═══ 圖表 ═══ */
+.chart-wrap-full{width:100%;margin-bottom:10px}
+
+/* ═══ 作業 ═══ */
+.task-single{background:rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;border:1px solid rgba(255,255,255,.15);margin-bottom:14px}
+.task-title{font-size:.82rem;font-weight:700;color:var(--gold);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.1)}
+.task-item{font-size:.78rem;color:rgba(255,255,255,.8);margin-bottom:7px;padding-left:4px;line-height:1.4}
+.submit-box{display:flex;align-items:center;gap:14px;background:rgba(13,148,136,.2);border:1px solid rgba(13,148,136,.4);border-radius:12px;padding:14px 16px}
+.submit-icon{font-size:2rem;flex-shrink:0}
+.submit-title{font-size:.88rem;font-weight:700;color:#fff;margin-bottom:4px}
+.submit-desc{font-size:.78rem;color:rgba(255,255,255,.8);line-height:1.5}
+
+/* ═══ 影片區塊 ═══ */
+.video-section{margin:10px 0}
+.video-embed{border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9;width:100%;max-width:560px;margin:0 auto}
+.video-embed iframe{width:100%;height:100%;border:none;display:block}
+.video-search-btn{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-size:.85rem;font-weight:600;transition:all .2s;width:fit-content;margin:0 auto}
+.video-search-btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(220,38,38,.4)}
+.video-search-btn .yt-icon{font-size:1.2rem}
+
+/* ═══ 測驗 Modal ═══ */
+#quiz-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+#quiz-overlay.show{display:flex}
+#quiz-box{background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+#quiz-header{background:var(--purple);color:#fff;padding:16px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center}
+#quiz-header h3{font-size:.95rem;font-weight:700}
+#quiz-header .qh-score{background:rgba(255,255,255,.2);padding:4px 12px;border-radius:12px;font-size:.78rem}
+#quiz-body{padding:16px 20px;overflow-y:auto;flex:1}
+.quiz-q{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f1f5f9}
+.quiz-q:last-child{border-bottom:none}
+.q-text{font-size:.9rem;font-weight:600;color:var(--navy);margin-bottom:10px;line-height:1.5;white-space:pre-wrap}
+.q-options{display:flex;flex-direction:column;gap:7px}
+.q-opt{padding:9px 14px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:.82rem;transition:all .15s;line-height:1.3}
+.q-opt:hover{border-color:var(--purple);background:#faf5ff}
+.q-opt.selected{border-color:var(--navy);background:rgba(30,58,95,.05)}
+.q-opt.correct{border-color:#10b981;background:#f0fdf4;color:#065f46}
+.q-opt.wrong{border-color:#ef4444;background:#fef2f2;color:#991b1b}
+.q-exp{font-size:.78rem;color:#374151;background:#f8fafc;padding:8px 12px;border-radius:8px;margin-top:8px;border-left:3px solid var(--purple);line-height:1.5}
+#quiz-footer{padding:14px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#fff;border-radius:0 0 16px 16px}
+#quiz-footer .qf-score{font-size:.88rem;font-weight:600;color:var(--navy)}
+#btn-submit-quiz,#btn-close-quiz{padding:8px 20px;border-radius:10px;border:none;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s}
+#btn-submit-quiz{background:var(--navy);color:#fff}
+#btn-submit-quiz:hover{background:#0f2340}
+#btn-close-quiz{background:var(--purple);color:#fff;display:none}
+#btn-close-quiz:hover{background:#5a3290}
+</style>
+</head>
+<body>
+<script>window.__SLIDES__=[{"id": 1, "title": "函式與遞迴", "chapter": "封面", "bg": "navy", "html": "\n<div style='text-align:center;padding:24px 20px;'>\n  <div style='font-size:66px;margin-bottom:14px;'>🧩<\/div>\n  <h1 style='font-size:2.6rem;font-weight:900;color:#fff;margin-bottom:10px;'>函式與遞迴<\/h1>\n  <h2 style='font-size:1.25rem;font-weight:400;color:#93c5fd;margin-bottom:24px;'>Functions · Parameters · Return · Recursion<\/h2>\n  <div style='display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:22px;'><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>🧰 def<\/span><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>📥 參數<\/span><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>📤 return<\/span><span style='background:rgba(255,255,255,0.15);color:#e0f2fe;padding:8px 18px;border-radius:20px;'>🪞 遞迴<\/span><\/div>\n  <p style='color:#bfdbfe;font-size:1.05rem;'>城市科技 · 高一第二學期 ｜ 第 11 週<\/p>\n<\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 2, "title": "你早就在用函式", "chapter": "第一節：內建函式與自訂函式", "bg": "white", "html": "<h2 class='slide-title'>🧰 其實你早就在用函式了<\/h2>\n<table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:36%;'>內建函式<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:34%;'>做什麼<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:30%;'>回傳<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>print(x)<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>輸出<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>（沒有回傳值）<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>input(提示)<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>讀取輸入<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>字串<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>int(x)、float(x)<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>轉換型態<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>數字<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>len(a)<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>求長度<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>整數<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>max(a)、min(a)、sum(a)<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>最大、最小、總和<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>數字<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>range(n)<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>產生數列<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>一串數字<\/td><\/tr><\/table>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 📦 函式就像<strong>販賣機<\/strong>：投入東西（參數），按下按鈕（呼叫），掉出結果（回傳值）。你不用知道裡面怎麼運作，會用就好。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 3, "title": "為什麼要自訂函式", "chapter": "第一節：內建函式與自訂函式", "bg": "white", "html": "<h2 class='slide-title'>🤔 為什麼要自己寫函式？<\/h2>\n<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;'><div style='background:#eff6ff;padding:14px;border-radius:10px;text-align:center;'><div style='font-size:1.8rem;'>♻️<\/div><strong style='color:#1e40af;font-size:.9rem;'>不重複<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>同樣的程式寫一次，到處呼叫<\/div><\/div><div style='background:#f0fdf4;padding:14px;border-radius:10px;text-align:center;'><div style='font-size:1.8rem;'>🛠️<\/div><strong style='color:#166534;font-size:.9rem;'>好維護<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>要改只改一個地方<\/div><\/div><div style='background:#f5f3ff;padding:14px;border-radius:10px;text-align:center;'><div style='font-size:1.8rem;'>👥<\/div><strong style='color:#5b21b6;font-size:.9rem;'>好分工<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>大問題拆成小函式，組員各寫各的<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧠 這就是運算思維的<strong>拆解（decomposition）<\/strong>與<strong>抽象化（abstraction）<\/strong>：把複雜的事包成一個有名字的工具。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 4, "title": "def 語法", "chapter": "第一節：內建函式與自訂函式", "bg": "white", "html": "<h2 class='slide-title'>✍️ 用 def 定義函式<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>語法<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def 函式名稱(參數1, 參數2):\n    函式主體（要縮排）\n    return 回傳值        # 沒有回傳值可省略<\/pre><\/div><\/div>\n<div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px;'><div style='display:flex;gap:12px;align-items:flex-start;background:#eff6ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>1<\/div><div><strong style='color:#1e40af;font-size:.88rem;'>def 開頭、冒號結尾<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>def = define（定義）<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#eff6ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>2<\/div><div><strong style='color:#1e40af;font-size:.88rem;'>名稱照變數命名規則<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>不可用保留字<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#eff6ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>3<\/div><div><strong style='color:#1e40af;font-size:.88rem;'>( ) 放參數<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>可以 0 個或多個，用逗號隔開<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#eff6ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>4<\/div><div><strong style='color:#1e40af;font-size:.88rem;'>先定義、後呼叫<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>定義要寫在呼叫之前<\/div><\/div><\/div><\/div>\n<\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 5, "title": "無回傳與有回傳", "chapter": "第一節：內建函式與自訂函式", "bg": "white", "html": "<h2 class='slide-title'>📤 沒有回傳值 vs 有回傳值<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>只「做事」：沒有 return<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def sayhello():\n    print(&quot;Hello Python!&quot;)\n\nsayhello()\nsayhello()<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>Hello Python!\nHello Python!<\/pre><\/div><\/div>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>「算出結果交回來」：有 return<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def add(a, b):\n    return a + b\n\ns = add(6, 10)\nprint(s)\nprint(add(1, 2) * 3)<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>16\n9<\/pre><\/div><\/div>\n<\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🔑 有 return 的函式可以放在運算式裡繼續用，例如 <code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>add(1, 2) * 3<\/code>。沒有 return 的函式回傳的是 <code style='background:#e2e8f0;color:#0f172a;padding:1px 6px;border-radius:4px;font-family:Consolas,Menlo,monospace;font-size:.85em;'>None<\/code>。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 6, "title": "第一節 隨堂測驗", "chapter": "第一節：內建函式與自訂函式", "bg": "purple", "quiz": "q1", "html": "\n<div style='text-align:center;padding:44px 20px;'>\n  <div style='font-size:54px;margin-bottom:16px;'>📝<\/div>\n  <h1 style='font-size:2rem;color:#fff;margin-bottom:10px;'>第一節 隨堂測驗<\/h1>\n  <p style='color:#e9d5ff;font-size:1rem;'>函式基本觀念 ｜ 4 題<\/p>\n  <p style='color:#c4b5fd;font-size:.85rem;margin-top:18px;'>按「下一頁 →」開始作答<\/p>\n<\/div>\n", "chart": null, "video": null}, {"id": 7, "title": "呼叫的過程", "chapter": "第二節：參數、回傳值與範圍", "bg": "white", "html": "<h2 class='slide-title'>🔄 呼叫函式時發生了什麼？<\/h2>\n<div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px;'><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>1<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>執行 s = add(6, 10)<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>先算等號右邊：呼叫 add<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>2<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>傳入參數<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>6 交給 a、10 交給 b（等同 a = 6, b = 10）<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>3<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>執行函式主體<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>計算 a + b = 16<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>4<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>return 16<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>函式結束，add(6, 10) 這個位置變成 16<\/div><\/div><\/div><div style='display:flex;gap:12px;align-items:flex-start;background:#f5f3ff;border-radius:10px;padding:10px 14px;'><div style='width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;'>5<\/div><div><strong style='color:#5b21b6;font-size:.88rem;'>回到原處<\/strong><div style='font-size:.8rem;color:#475569;margin-top:3px;line-height:1.6;'>執行 s = 16<\/div><\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 📌 執行到 return 函式就<strong>立刻結束<\/strong>，return 後面的程式不會執行。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 8, "title": "範例：次方函式", "chapter": "第二節：參數、回傳值與範圍", "bg": "white", "html": "<h2 class='slide-title'>💪 範例：自己寫次方函式<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def power(a, b):\n    p = 1\n    for i in range(b):\n        p *= a\n    return p\n\nx, y = map(int, input().split())\nprint(power(x, y))<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>2 10\n1024<\/pre><\/div><\/div>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>絕對值：不同情況回傳不同值<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def my_abs(n):\n    if n &lt; 0:\n        return -n\n    return n\n\nprint(my_abs(-7), my_abs(3))<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>7 3<\/pre><\/div><\/div>\n<\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 9, "title": "範例：最大公因數", "chapter": "第二節：參數、回傳值與範圍", "bg": "white", "html": "<h2 class='slide-title'>🔢 範例：最大公因數與最小公倍數<\/h2>\n<div style='display:grid;grid-template-columns:1.5fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><div style='font-size:.72rem;color:#94a3b8;margin-bottom:6px;'>輾轉相除法<\/div><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def gcd(a, b):\n    while b != 0:\n        a, b = b, a % b\n    return a\n\na, b = 12, 18\ng = gcd(a, b)\nprint(&quot;最大公因數&quot;, g)\nprint(&quot;最小公倍數&quot;, a * b // g)<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>最大公因數 6\n最小公倍數 36<\/pre><\/div><\/div>\n<table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:33%;'>a<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:33%;'>b<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:34%;'>a % b<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>12<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>18<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>12<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>18<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>12<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>6<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>12<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>6<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>0<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'><strong>6<\/strong><\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>0<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>停<\/td><\/tr><\/table>\n<\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 📐 兩數乘積 = 最大公因數 × 最小公倍數。輾轉相除法（歐幾里得演算法）是有記載以來最古老的演算法之一。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 10, "title": "變數範圍", "chapter": "第二節：參數、回傳值與範圍", "bg": "white", "html": "<h2 class='slide-title'>🏠 區域變數 vs 全域變數<\/h2>\n<div style='display:grid;grid-template-columns:1.4fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def area(r):\n    pi = 3.14          # 區域變數：只在函式裡有效\n    return pi * r * r\n\nprint(area(2))\nprint(pi)<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>12.56\nNameError: name &#x27;pi&#x27; is not defined<\/pre><\/div><\/div>\n<div style='background:#f0fdfa;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🚪<\/div><strong style='color:#115e59;font-size:.9rem;'>函式是一個房間<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>在函式裡建立的變數（含參數），<strong>函式結束就消失<\/strong>，外面看不到。<br><br>要把結果帶出來，就用 <strong>return<\/strong>。<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 ✅ 好習慣：函式需要的資料用<strong>參數<\/strong>傳進去，結果用 <strong>return<\/strong> 傳出來，不要依賴外面的變數。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 11, "title": "第二節 隨堂測驗", "chapter": "第二節：參數、回傳值與範圍", "bg": "purple", "quiz": "q2", "html": "\n<div style='text-align:center;padding:44px 20px;'>\n  <div style='font-size:54px;margin-bottom:16px;'>📝<\/div>\n  <h1 style='font-size:2rem;color:#fff;margin-bottom:10px;'>第二節 隨堂測驗<\/h1>\n  <p style='color:#e9d5ff;font-size:1rem;'>參數、回傳值與範圍 ｜ 4 題<\/p>\n  <p style='color:#c4b5fd;font-size:.85rem;margin-top:18px;'>按「下一頁 →」開始作答<\/p>\n<\/div>\n", "chart": null, "video": null}, {"id": 12, "title": "什麼是遞迴", "chapter": "第三節：遞迴", "bg": "white", "html": "<h2 class='slide-title'>🪞 遞迴：函式呼叫自己<\/h2>\n<div style='background:#f1f5f9;border-radius:10px;padding:12px 16px;margin-bottom:14px;border-left:4px solid #0d9488;'><p style='margin:0;color:#0f172a;font-size:.93rem;line-height:1.7;'>如果一個問題可以<strong>拆成和自己長得一樣、但規模比較小的問題<\/strong>，就可以用遞迴解決。<\/p><\/div>\n<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;'><div style='background:#eff6ff;padding:14px;border-radius:10px;text-align:center;'><div style='font-size:1.8rem;'>🪆<\/div><strong style='color:#1e40af;font-size:.9rem;'>俄羅斯娃娃<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>打開一個，裡面是更小的同款娃娃，直到最小那個<\/div><\/div><div style='background:#f0fdf4;padding:14px;border-radius:10px;text-align:center;'><div style='font-size:1.8rem;'>🧍<\/div><strong style='color:#166534;font-size:.9rem;'>排隊問人數<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>問前面的人「你前面有幾人」，再 +1<\/div><\/div><div style='background:#fefce8;padding:14px;border-radius:10px;text-align:center;'><div style='font-size:1.8rem;'>🪞<\/div><strong style='color:#854d0e;font-size:.9rem;'>兩面鏡子<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>鏡中有鏡，一層一層變小<\/div><\/div><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 13, "title": "遞迴兩要素", "chapter": "第三節：遞迴", "bg": "white", "html": "<h2 class='slide-title'>🧱 寫遞迴的兩個要素<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;'><div style='background:#eff6ff;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🔗<\/div><strong style='color:#1e40af;font-size:.9rem;'>① 遞迴關係式<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>大問題怎麼用小問題表示？<br><br>f(n) = 1 + 2 + … + n<br>f(n−1) = 1 + 2 + … + (n−1)<br>所以 <strong>f(n) = f(n−1) + n<\/strong><\/div><\/div><div style='background:#fef2f2;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🛑<\/div><strong style='color:#991b1b;font-size:.9rem;'>② 終止條件<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>最小的問題答案是什麼？<br><br><strong>f(1) = 1<\/strong><br><br>沒有終止條件會一直呼叫下去，Python 會出現 <strong>RecursionError<\/strong>。<\/div><\/div><\/div>\n<div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def f(n):\n    if n == 1:          # 終止條件\n        return 1\n    return f(n - 1) + n # 遞迴關係式\n\nprint(f(100))<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>5050<\/pre><\/div><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 14, "title": "遞迴展開過程", "chapter": "第三節：遞迴", "bg": "white", "html": "<h2 class='slide-title'>🔍 f(4) 是怎麼算出來的？<\/h2>\n<div style='display:grid;grid-template-columns:1.2fr 1fr;gap:12px;'><table style='width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;margin-bottom:12px;'><tr style='background:#1E3A5F;color:#fff;'><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:55%;'>往下呼叫<\/th><th style='padding:9px 12px;text-align:left;font-size:.8rem;width:45%;'>往上回傳<\/th><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>f(4) = f(3) + 4<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>= 6 + 4 = <strong>10<\/strong><\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>f(3) = f(2) + 3<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>= 3 + 3 = 6<\/td><\/tr><tr style='background:#fff;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>f(2) = f(1) + 2<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>= 1 + 2 = 3<\/td><\/tr><tr style='background:#f8fafc;'><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>f(1) = 1（終止）<\/td><td style='padding:8px 12px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#334155;vertical-align:top;line-height:1.6;'>回傳 1<\/td><\/tr><\/table>\n<div style='background:#f5f3ff;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>📚<\/div><strong style='color:#5b21b6;font-size:.9rem;'>先下去、再回來<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>呼叫會一層一層「疊」起來，直到碰到終止條件，再一層一層把答案「傳」回去。<br><br>這個疊起來的結構叫做<strong>堆疊（stack）<\/strong>。<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧾 對應線上練習 <strong>#508 遞迴結構<\/strong>、<strong>#509 1 + 2 + … n 的遞迴<\/strong>、<strong>#510<\/strong>。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 15, "title": "階乘", "chapter": "第三節：遞迴", "bg": "white", "html": "<h2 class='slide-title'>❗ 範例：n 階乘<\/h2>\n<div style='display:grid;grid-template-columns:1.2fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def fact(n):\n    if n &lt;= 1:\n        return 1\n    return n * fact(n - 1)\n\nprint(fact(5))\nprint(fact(10))<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>120\n3628800<\/pre><\/div><\/div>\n<div style='background:#f0fdf4;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🧮<\/div><strong style='color:#166534;font-size:.9rem;'>關係式與終止條件<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>n! = 1 × 2 × … × n<br><strong>n! = n × (n−1)!<\/strong><br><strong>0! = 1! = 1<\/strong><br><br>和第 4 章的累乘迴圈結果一樣，只是換個想法。<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧾 對應線上練習 <strong>#513 使用遞迴計算 1 × 2 × 3 × … × n<\/strong>。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 16, "title": "費氏數列", "chapter": "第三節：遞迴", "bg": "white", "html": "<h2 class='slide-title'>🐇 範例：費氏數列<\/h2>\n<div style='background:#f1f5f9;border-radius:10px;padding:12px 16px;margin-bottom:14px;border-left:4px solid #0d9488;'><p style='margin:0;color:#0f172a;font-size:.93rem;line-height:1.7;'>1, 1, 2, 3, 5, 8, 13, 21…　由義大利數學家費波那契於 1202 年在《計算之書》中以兔子繁殖問題提出：<strong>每一項是前兩項的和<\/strong>。<\/p><\/div>\n<div style='display:grid;grid-template-columns:1.3fr 1fr;gap:12px;'><div style='background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:12px;'><div style='padding:10px 14px;'><pre style='margin:0;color:#e2e8f0;font-size:.82rem;line-height:1.6;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>def fib(n):\n    if n &lt;= 2:\n        return 1\n    return fib(n - 1) + fib(n - 2)\n\nfor i in range(1, 11):\n    print(fib(i), end=&quot; &quot;)<\/pre><\/div><div style='background:#0b1220;border-top:1px dashed #334155;padding:8px 14px;'><span style='font-size:.68rem;color:#64748b;'>▶ 執行結果<\/span><pre style='margin:4px 0 0;color:#a7f3d0;font-size:.8rem;line-height:1.55;white-space:pre-wrap;font-family:Consolas,Menlo,monospace;'>1 1 2 3 5 8 13 21 34 55 <\/pre><\/div><\/div>\n<div style='background:#fefce8;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🌻<\/div><strong style='color:#854d0e;font-size:.9rem;'>終止條件有兩個<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>f(1) = f(2) = 1<br>f(n) = f(n−1) + f(n−2)<br><br>大自然中的向日葵種子、松果鱗片排列常出現費氏數列。<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🧾 對應線上練習 <strong>#511 使用遞迴計算費氏數列第 n 項的值<\/strong>。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 17, "title": "遞迴的代價", "chapter": "第三節：遞迴", "bg": "white", "html": "<h2 class='slide-title'>🐢 遞迴不一定比較快<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;'><div style='background:#fef2f2;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>🌳<\/div><strong style='color:#991b1b;font-size:.9rem;'>fib(35) 為什麼那麼慢？<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>fib(5) 要算 fib(4) 和 fib(3)；fib(4) 又要算 fib(3)…<br>同一個值被<strong>重複算了很多次<\/strong>，呼叫次數像樹枝一樣爆炸增加。<\/div><\/div><div style='background:#f0fdf4;padding:14px;border-radius:10px;'><div style='font-size:1.8rem;'>⚡<\/div><strong style='color:#166534;font-size:.9rem;'>改進方法<\/strong><div style='font-size:.8rem;color:#475569;margin-top:6px;line-height:1.7;'>① 改用迴圈從前往後算<br>② 把算過的答案存起來（記憶化，memoization）<br><br>遞迴適合讓程式「好想、好寫」，但要注意效率。<\/div><\/div><\/div>\n<div style='background:#eff6ff;padding:11px 16px;border-radius:8px;border-left:4px solid #2563eb;'><p style='color:#374151;font-size:.88rem;margin:0;line-height:1.7;'>💬 🎓 延伸：二分搜尋也能寫成遞迴（#512）：在左半或右半「用同樣方法再找一次」，終止條件是 left > right 或找到。<\/p><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 18, "title": "第三節 隨堂測驗", "chapter": "第三節：遞迴", "bg": "purple", "quiz": "q3", "html": "\n<div style='text-align:center;padding:44px 20px;'>\n  <div style='font-size:54px;margin-bottom:16px;'>📝<\/div>\n  <h1 style='font-size:2rem;color:#fff;margin-bottom:10px;'>第三節 隨堂測驗<\/h1>\n  <p style='color:#e9d5ff;font-size:1rem;'>遞迴 ｜ 4 題<\/p>\n  <p style='color:#c4b5fd;font-size:.85rem;margin-top:18px;'>按「下一頁 →」開始作答<\/p>\n<\/div>\n", "chart": null, "video": null}, {"id": 19, "title": "本週實作", "chapter": "實作與總結", "bg": "white", "html": "<h2 class='slide-title'>✏️ 本週實作：Colab ＋ 線上練習<\/h2>\n<div style='display:flex;align-items:center;gap:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;margin-bottom:12px;'><div style='font-size:2rem;'>📓<\/div><div style='flex:1;'><strong style='color:#9a3412;font-size:.9rem;'>第 8 課 Colab 練習（7 題）<\/strong><div style='font-size:.78rem;color:#475569;margin-top:4px;line-height:1.6;'>次方函式、圓面積函式、最大公因數、遞迴 1 加到 n、n!、費氏數列、遞迴二分搜尋（挑戰）<\/div><\/div><a href='https://colab.research.google.com/github/fhehshs/city-tech-115-2/blob/main/notebooks/py08_function.ipynb' target='_blank' rel='noopener' style='background:#f9ab00;color:#1f2937;font-weight:700;font-size:.82rem;padding:9px 16px;border-radius:20px;text-decoration:none;white-space:nowrap;'>在 Colab 開啟 ↗<\/a><\/div>\n<div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;margin-bottom:12px;'><div style='display:flex;justify-content:space-between;align-items:center;gap:10px;'><strong style='color:#166534;font-size:.9rem;'>💻 線上練習（Online Judge）<\/strong><a href='http://103.226.213.97/course/view.php?id=2109' target='_blank' rel='noopener' style='background:#16a34a;color:#fff;font-weight:700;font-size:.78rem;padding:7px 14px;border-radius:18px;text-decoration:none;white-space:nowrap;'>前往練習網站 ↗<\/a><\/div><ul style='margin:8px 0 0 18px;font-size:.8rem;color:#334155;line-height:1.6;'><li style='margin-bottom:3px;'><strong>#329<\/strong> 函式（測驗）<\/li><li style='margin-bottom:3px;'><strong>#508、#509<\/strong> 遞迴結構觀念（測驗）<\/li><li style='margin-bottom:3px;'><strong>#510<\/strong> 使用遞迴計算 1 加到 n（VPL）<\/li><li style='margin-bottom:3px;'><strong>#511<\/strong> 費氏數列第 n 項（VPL）<\/li><li style='margin-bottom:3px;'><strong>#512<\/strong> 二分搜尋使用遞迴（VPL）<\/li><li style='margin-bottom:3px;'><strong>#513<\/strong> 遞迴計算 n!（VPL）<\/li><\/ul><div style='font-size:.72rem;color:#64748b;margin-top:6px;'>課程：115芳和高中資訊科技Py ｜ VPL 題送出後系統會自動「評估」給分<\/div><\/div>\n", "quiz": null, "chart": null, "video": null}, {"id": 20, "title": "本週總結", "chapter": "實作與總結", "bg": "navy", "html": "\n<h2 style='color:#fff;font-size:1.5rem;font-weight:700;margin-bottom:14px;'>📌 本週重點<\/h2>\n<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;'><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>def<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>定義函式：名稱、參數、主體、return<\/p><\/div><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>return<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>把結果交回呼叫的地方，函式立刻結束<\/p><\/div><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>區域變數<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>函式裡的變數離開函式就消失<\/p><\/div><div style='background:rgba(255,255,255,.1);border-radius:10px;padding:13px;'><strong style='color:#93c5fd;font-size:.9rem;'>遞迴<\/strong><p style='color:#e2e8f0;font-size:.8rem;margin-top:5px;line-height:1.7;'>關係式 + 終止條件，缺一不可<\/p><\/div><\/div>\n<div style='background:linear-gradient(90deg,rgba(13,148,136,.35),rgba(107,63,160,.35));border-radius:10px;padding:16px 20px;text-align:center;'>\n  <p style='color:#fff;font-size:1.02rem;font-weight:700;margin:0;'>「把大問題拆成小問題，是程式設計最重要的能力。」<\/p>\n  <p style='color:#cbd5e1;font-size:.82rem;margin-top:6px;'>下一章：Pandas 與機器學習——用 Python 分析真實的開放資料<\/p>\n<\/div>\n", "quiz": null, "chart": null, "video": null}];window.__QUIZZES__={"q1": {"title": "第一節 隨堂測驗", "questions": [{"q": "Python 定義函式要用哪個保留字？", "options": ["function", "def", "func", "define"], "answer": 1, "explain": "Python 用 def（define 的縮寫）定義函式，最後要加冒號。"}, {"q": "下列何者「不是」自訂函式的好處？", "options": ["同樣的程式可以重複使用", "要修改時只改一個地方", "程式一定跑得比較快", "方便分工合作"], "answer": 2, "explain": "函式讓程式好讀、好維護、好重複使用，但不保證執行速度變快。"}, {"q": "以下程式輸出？\ndef add(a, b):\n    return a + b\nprint(add(2, 3) * 2)", "options": ["5", "10", "2323", "錯誤"], "answer": 1, "explain": "add(2, 3) 回傳 5，再乘以 2 得到 10。"}, {"q": "一個函式沒有寫 return，呼叫後得到的值是？", "options": ["0", "空字串", "None", "錯誤"], "answer": 2, "explain": "沒有 return 的函式執行完會回傳 None，代表「沒有值」。"}]}, "q2": {"title": "第二節 隨堂測驗", "questions": [{"q": "以下程式輸出？\ndef f(x):\n    return x * 2\n    print(\"Hi\")\nprint(f(4))", "options": ["8", "Hi 和 8", "8 和 Hi", "Hi"], "answer": 0, "explain": "執行到 return 函式就結束，後面的 print(\"Hi\") 永遠不會執行。"}, {"q": "輾轉相除法 gcd(12, 18) 的結果是？", "options": ["2", "3", "6", "36"], "answer": 2, "explain": "12 和 18 的最大公因數是 6；最小公倍數是 12 × 18 ÷ 6 = 36。"}, {"q": "在函式裡建立的變數，在函式外面使用會怎樣？", "options": ["可以正常使用", "出現 NameError", "自動變成 0", "自動變成全域變數"], "answer": 1, "explain": "函式內的變數是區域變數，函式結束就消失。要把結果帶出來請用 return。"}, {"q": "呼叫 power(2, 5) 時，參數 a 和 b 分別是？", "options": ["a = 5, b = 2", "a = 2, b = 5", "a = 7, b = 0", "都是 2"], "answer": 1, "explain": "參數依照位置對應：第一個值 2 給 a，第二個值 5 給 b。"}]}, "q3": {"title": "第三節 隨堂測驗", "questions": [{"q": "撰寫遞迴函式一定要有哪兩個要素？", "options": ["迴圈和串列", "遞迴關係式和終止條件", "input 和 print", "全域變數和 break"], "answer": 1, "explain": "關係式描述「大問題如何變成小問題」，終止條件讓遞迴能停下來，兩者缺一不可。"}, {"q": "def f(n):\n    if n == 1: return 1\n    return f(n-1) + n\nf(4) 的值是？", "options": ["4", "10", "24", "無限遞迴"], "answer": 1, "explain": "f(4) = f(3) + 4 = (f(2) + 3) + 4 = ((1 + 2) + 3) + 4 = 10。"}, {"q": "費氏數列 1, 1, 2, 3, 5, 8, … 的第 9 項是？", "options": ["21", "34", "55", "13"], "answer": 1, "explain": "接著寫：13（第 7 項）、21（第 8 項）、34（第 9 項）。每一項都是前兩項的和。"}, {"q": "遞迴函式忘了寫終止條件，執行時會？", "options": ["回傳 0", "自動停止", "一直呼叫自己，最後出現 RecursionError", "變成迴圈"], "answer": 2, "explain": "沒有終止條件就會無限呼叫，Python 有呼叫深度上限，超過就出現 RecursionError。"}]}};</script>
+
+<!-- 進度條 -->
+<div id="progress-bar" style="width:0%"></div>
+
+<!-- 頂部導覽列 -->
+<div id="topbar">
+  <a href="index.html" style="color:#94a3b8;text-decoration:none;font-size:.8rem;white-space:nowrap">🏠 首頁</a>
+  <span class="tb-title" id="tb-chapter">城市科技 Python（高一第二學期）</span>
+  <span class="tb-counter" id="tb-counter">1 / 20</span>
+  <button id="btn-toc" onclick="toggleToc()">目錄 ☰</button>
+</div>
+
+<!-- 投影片主體 -->
+<div id="slide-wrap">
+  <div id="slide-frame" class="bg-navy"></div>
+</div>
+
+<!-- 底部導覽 -->
+<div id="nav-bar">
+  <button class="nav-btn" id="btn-prev" onclick="prevSlide()" disabled>← 上一頁</button>
+  <div id="slide-dots"></div>
+  <button class="nav-btn" id="btn-next" onclick="nextSlide()">下一頁 →</button>
+</div>
+
+<!-- TOC 側邊欄 -->
+<div id="toc">
+  <h3>📑 課程目錄</h3>
+  <div id="toc-list"></div>
+</div>
+
+<!-- 測驗 Modal -->
+<div id="quiz-overlay">
+  <div id="quiz-box">
+    <div id="quiz-header">
+      <h3 id="quiz-title">測驗</h3>
+      <span class="qh-score" id="quiz-score-preview"></span>
+    </div>
+    <div id="quiz-body"></div>
+    <div id="quiz-footer">
+      <span class="qf-score" id="quiz-result"></span>
+      <div style="display:flex;gap:10px">
+        <button id="btn-submit-quiz" onclick="submitQuiz()">送出答案</button>
+        <button id="btn-close-quiz" onclick="closeQuiz()">繼續學習 →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  從 Jinja2 模板取得 Flask 傳入的資料
+// ════════════════════════════════════════════════════════════
+const TOTAL_SLIDES = 20;
+const CHAPTERS_DATA = [{"name": "\u5c01\u9762", "start": 1}, {"name": "\u7b2c\u4e00\u7bc0\uff1a\u5167\u5efa\u51fd\u5f0f\u8207\u81ea\u8a02\u51fd\u5f0f", "start": 2}, {"name": "\u7b2c\u4e8c\u7bc0\uff1a\u53c3\u6578\u3001\u56de\u50b3\u503c\u8207\u7bc4\u570d", "start": 7}, {"name": "\u7b2c\u4e09\u7bc0\uff1a\u905e\u8ff4", "start": 12}, {"name": "\u5be6\u4f5c\u8207\u7e3d\u7d50", "start": 19}];
+
+// ════════════════════════════════════════════════════════════
+//  全域狀態
+// ════════════════════════════════════════════════════════════
+let slides = [];
+let quizzes = {};
+let cur = 0;
+let answered = {};
+let tocVisible = true;
+const chartInstances = {};
+
+// ════════════════════════════════════════════════════════════
+//  初始化：從 Flask API 取得資料
+// ════════════════════════════════════════════════════════════
+async function init() {
+  try {
+    const [slidesRes, quizzesRes] = await Promise.all([
+      Promise.resolve({json:()=>window.__SLIDES__}),
+      Promise.resolve({json:()=>window.__QUIZZES__})
+    ]);
+    slides = await slidesRes.json();
+    quizzes = await quizzesRes.json();
+    buildToc();
+    buildDots();
+    goTo(0);
+  } catch (e) {
+    console.error('資料載入失敗：', e);
+    document.getElementById('slide-frame').innerHTML =
+      "<div style='color:red;padding:20px'>❌ 請確認 Flask 伺服器已啟動！<br><code>python app.py</code></div>";
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  建立目錄（TOC）
+// ════════════════════════════════════════════════════════════
+function buildToc() {
+  const list = document.getElementById('toc-list');
+  let lastChapter = '';
+  slides.forEach((s, i) => {
+    if (s.chapter !== lastChapter) {
+      const ch = document.createElement('div');
+      ch.className = 'toc-chapter';
+      ch.textContent = s.chapter;
+      list.appendChild(ch);
+      lastChapter = s.chapter;
+    }
+    const item = document.createElement('div');
+    item.className = 'toc-item';
+    item.id = `toc-${i}`;
+    item.textContent = `${s.id}. ${s.title}`;
+    item.onclick = () => goTo(i);
+    list.appendChild(item);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  建立點狀導覽
+// ════════════════════════════════════════════════════════════
+function buildDots() {
+  const wrap = document.getElementById('slide-dots');
+  const step = Math.max(1, Math.floor(slides.length / 15));
+  slides.forEach((s, i) => {
+    if (i % step !== 0 && i !== slides.length - 1) return;
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.id = `dot-${i}`;
+    d.title = s.title;
+    d.onclick = () => goTo(i);
+    wrap.appendChild(d);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  前往特定投影片
+// ════════════════════════════════════════════════════════════
+function goTo(idx) {
+  if (idx < 0 || idx >= slides.length) return;
+  cur = idx;
+  const s = slides[cur];
+  const frame = document.getElementById('slide-frame');
+  frame.className = '';
+  frame.classList.add('bg-' + s.bg);
+  frame.style.opacity = '0';
+  frame.innerHTML = s.html;
+  setTimeout(() => { frame.style.opacity = '1'; }, 30);
+  frame.scrollTop = 0;
+  if (s.chart) setTimeout(() => renderChart(s.chart), 80);
+  if (s.video) setTimeout(() => renderVideo(s.id, s.video), 80);
+  updateNav();
+  updateToc();
+  updateProgress();
+}
+
+// ════════════════════════════════════════════════════════════
+//  導覽：下一頁（有測驗時先觸發測驗）
+// ════════════════════════════════════════════════════════════
+function nextSlide() {
+  const s = slides[cur];
+  if (s.quiz && !answered[s.quiz]) {
+    showQuiz(s.quiz);
+  } else {
+    goTo(cur + 1);
+  }
+}
+function prevSlide() { goTo(cur - 1); }
+
+// ════════════════════════════════════════════════════════════
+//  更新導覽列、進度條、TOC
+// ════════════════════════════════════════════════════════════
+function updateNav() {
+  document.getElementById('btn-prev').disabled = cur === 0;
+  const isLast = cur === slides.length - 1;
+  const hasUnansweredQuiz = slides[cur].quiz && !answered[slides[cur].quiz];
+  document.getElementById('btn-next').disabled = isLast && !hasUnansweredQuiz;
+  document.getElementById('tb-chapter').textContent = slides[cur].chapter + '：' + slides[cur].title;
+  document.getElementById('tb-counter').textContent = `${cur + 1} / ${slides.length}`;
+  document.querySelectorAll('.dot').forEach(d => {
+    d.classList.remove('active');
+    const i = parseInt(d.id.replace('dot-', ''));
+    if (cur === i) d.classList.add('active');
+    else if (cur > i) d.classList.add('done');
+    else d.classList.remove('done');
+  });
+}
+
+function updateProgress() {
+  const pct = ((cur + 1) / slides.length) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function updateToc() {
+  document.querySelectorAll('.toc-item').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i === cur) { el.classList.add('active'); el.scrollIntoView({block:'nearest'}); }
+    else if (i < cur) el.classList.add('done');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  切換 TOC 顯示
+// ════════════════════════════════════════════════════════════
+function toggleToc() {
+  tocVisible = !tocVisible;
+  document.getElementById('toc').classList.toggle('hidden', !tocVisible);
+  document.getElementById('slide-wrap').classList.toggle('toc-hidden', !tocVisible);
+  document.getElementById('nav-bar').classList.toggle('toc-hidden', !tocVisible);
+}
+
+// ════════════════════════════════════════════════════════════
+//  鍵盤快捷鍵
+// ════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+  if (e.key === 'ArrowLeft') prevSlide();
+});
+
+// ════════════════════════════════════════════════════════════
+//  影片渲染（YouTube 嵌入 / 搜尋按鈕 / 兩者兼具）
+//  嵌入使用 youtube-nocookie.com（不追蹤、不推薦其他影片、無個人化廣告）
+//  參數 rel=0（結束不推薦別家頻道）、modestbranding=1（隱藏 YT logo）
+// ════════════════════════════════════════════════════════════
+function _ytEmbedHtml(vid, title) {
+  // 使用 youtube-nocookie.com — YouTube 官方「隱私強化」網域，更乾淨
+  return `
+    <div class="video-embed">
+      <iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&iv_load_policy=3&fs=1"
+        allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        loading="lazy"></iframe>
+    </div>
+    <p style="text-align:center;font-size:.72rem;color:rgba(255,255,255,.55);margin-top:6px">▶ ${title}</p>`;
+}
+function _ytSearchHtml(query, title, desc) {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  return `
+    <a href="${url}" target="_blank" class="video-search-btn">
+      <span class="yt-icon">▶️</span>
+      <span>
+        <strong>${title}</strong><br>
+        <small style="font-weight:400;opacity:.8">${desc}</small>
+      </span>
+    </a>`;
+}
+
+function renderVideo(slideId, video) {
+  const el = document.getElementById(`video-section-${slideId}`);
+  if (!el) return;
+  if (video.type === 'youtube') {
+    el.innerHTML = _ytEmbedHtml(video.id, video.title);
+  } else if (video.type === 'both') {
+    // 嵌入播放器 + 底下附「找不到？搜尋更多」備援
+    el.innerHTML = `
+      ${_ytEmbedHtml(video.id, video.title)}
+      <div style="margin-top:10px;">
+        ${_ytSearchHtml(video.query, video.search_title || '想看更多相關影片', video.desc || '在 YouTube 搜尋同主題其他教學')}
+      </div>`;
+  } else {
+    el.innerHTML = _ytSearchHtml(video.query, video.title, video.desc);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  圖表渲染（Chart.js，防止重複建立）
+// ════════════════════════════════════════════════════════════
+function renderChart(type) {
+  if (type === 'formats') {
+    const el = document.getElementById('chart-formats');
+    if (!el || chartInstances['formats']) return;
+    chartInstances['formats'] = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: ['JPEG（照片）', 'PNG（圖示）', 'PNG（截圖）', 'SVG（Logo）'],
+        datasets: [{
+          label: '典型檔案大小（KB）',
+          data: [150, 400, 1200, 8],
+          backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.raw} KB` } }
+        },
+        scales: {
+          y: {
+            type: 'logarithmic',
+            title: { display: true, text: '檔案大小 KB（對數刻度）', color:'#6b7280', font:{size:10} },
+            ticks: { color:'#6b7280', font:{size:10}, callback: v => v + ' KB' }
+          },
+          x: { ticks: { color:'#374151', font:{size:11} }, grid:{display:false} }
+        }
+      }
+    });
+  }
+
+  if (type === 'ai_tools') {
+    const el = document.getElementById('chart-ai-tools');
+    if (!el || chartInstances['ai_tools']) return;
+    chartInstances['ai_tools'] = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: ['ChatGPT GPT-4o', 'Canva AI', 'Midjourney', 'Adobe Firefly'],
+        datasets: [
+          {
+            label: '圖像品質',
+            data: [4, 3, 5, 4],
+            backgroundColor: 'rgba(107,63,160,.7)',
+            borderRadius: 4
+          },
+          {
+            label: '操作難易',
+            data: [5, 5, 2, 4],
+            backgroundColor: 'rgba(13,148,136,.7)',
+            borderRadius: 4
+          },
+          {
+            label: '授權安全',
+            data: [3, 4, 3, 5],
+            backgroundColor: 'rgba(245,158,11,.7)',
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font:{size:10}, padding:8 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}：${'⭐'.repeat(ctx.raw)}` } }
+        },
+        scales: {
+          y: {
+            min: 0, max: 5,
+            ticks: { color:'#6b7280', font:{size:10}, stepSize: 1, callback: v => v + '⭐' }
+          },
+          x: { ticks: { color:'#374151', font:{size:10} }, grid:{display:false} }
+        }
+      }
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  測驗功能
+// ════════════════════════════════════════════════════════════
+let curQuizId = null;
+let quizUserAnswers = {};
+
+function showQuiz(qId) {
+  curQuizId = qId;
+  quizUserAnswers = {};
+  const q = quizzes[qId];
+  document.getElementById('quiz-title').textContent = q.title;
+  document.getElementById('quiz-score-preview').textContent = q.questions.length + ' 題';
+  document.getElementById('quiz-result').textContent = '';
+  document.getElementById('btn-submit-quiz').style.display = '';
+  document.getElementById('btn-close-quiz').style.display = 'none';
+
+  const body = document.getElementById('quiz-body');
+  body.innerHTML = '';
+  q.questions.forEach((question, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-q';
+    div.innerHTML = `<div class="q-text">${qi+1}. ${question.q}</div>
+      <div class="q-options" id="opts-${qi}">
+        ${question.options.map((opt, oi) =>
+          `<div class="q-opt" id="opt-${qi}-${oi}" onclick="selectOpt(${qi},${oi})">${opt}</div>`
+        ).join('')}
+      </div>`;
+    body.appendChild(div);
+  });
+  document.getElementById('quiz-overlay').classList.add('show');
+}
+
+function selectOpt(qi, oi) {
+  quizUserAnswers[qi] = oi;
+  const q = quizzes[curQuizId];
+  for (let o = 0; o < q.questions[qi].options.length; o++) {
+    document.getElementById(`opt-${qi}-${o}`).classList.toggle('selected', o === oi);
+  }
+}
+
+function submitQuiz() {
+  const q = quizzes[curQuizId];
+  let correct = 0;
+  q.questions.forEach((question, qi) => {
+    const chosen = quizUserAnswers[qi];
+    const opts = document.getElementById(`opts-${qi}`);
+    for (let o = 0; o < question.options.length; o++) {
+      const el = document.getElementById(`opt-${qi}-${o}`);
+      el.onclick = null;
+      el.classList.remove('selected');
+      if (o === question.answer) el.classList.add('correct');
+      else if (o === chosen && chosen !== question.answer) el.classList.add('wrong');
+    }
+    if (!opts.querySelector('.q-exp')) {
+      const exp = document.createElement('div');
+      exp.className = 'q-exp';
+      exp.innerHTML = '💡 ' + question.explain;   // 解析內容中的 <strong> 等標記
+      opts.after(exp);
+    }
+    if (chosen === question.answer) correct++;
+  });
+  const pct = Math.round((correct / q.questions.length) * 100);
+  document.getElementById('quiz-result').textContent = `得分：${correct}/${q.questions.length}（${pct}%）`;
+  document.getElementById('btn-submit-quiz').style.display = 'none';
+  document.getElementById('btn-close-quiz').style.display = 'inline-block';
+  answered[curQuizId] = true;
+}
+
+function closeQuiz() {
+  document.getElementById('quiz-overlay').classList.remove('show');
+  goTo(cur + 1);
+}
+
+// ════════════════════════════════════════════════════════════
+//  啟動
+// ════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
